@@ -18,6 +18,7 @@
     <nav class="main-nav" id="main-nav">
       <a href="#anasayfa">Ana sayfa</a>
       <a href="#hizmetler">Hizmetler</a>
+      <a href="#calismalar">Çalışmalarımız</a>
       <a href="#iletisim">İletişim</a>
     </nav>
     <button class="nav-toggle" id="nav-toggle" aria-label="Menüyü aç" aria-expanded="false">
@@ -53,34 +54,65 @@
   <section id="hizmetler" class="services">
     <div class="section-inner">
       <h2>Hizmetlerimiz</h2>
-      <div class="service-list">
-        <div class="service-row">
-          <div class="service-top">
-            <span class="service-name">Otomasyon scriptleri</span>
-            <span class="service-price">1.500₺'dan başlayan fiyatlarla</span>
+      <div class="table-scroll">
+        <table class="package-table" id="package-table">
+          <!-- Bu tablo script.js içindeki "packages" listesinden otomatik oluşturuluyor. -->
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="calismalar" class="showcase">
+    <div class="section-inner">
+      <h2>Örnek çalışmalarımız</h2>
+      <div class="showcase-list">
+        <div class="showcase-row">
+          <div class="showcase-before">
+            <span class="showcase-tag">Önce</span>
+            <p>Her ay elle hazırlanan satış raporu</p>
           </div>
-          <p class="service-desc">Tekrar eden işlerinizi otomatikleştiren, Python ile yazılmış özel scriptler.</p>
+          <div class="showcase-arrow" aria-hidden="true">→</div>
+          <div class="showcase-after">
+            <span class="showcase-tag showcase-tag-accent">Sonra</span>
+            <p>Tek komutla 2 dakikada hazır rapor</p>
+            <span class="showcase-badge">12 saat/ay tasarruf</span>
+          </div>
         </div>
-        <div class="service-row">
-          <div class="service-top">
-            <span class="service-name">Discord bot geliştirme</span>
-            <span class="service-price">2.000₺'dan başlayan fiyatlarla</span>
+        <div class="showcase-row">
+          <div class="showcase-before">
+            <span class="showcase-tag">Önce</span>
+            <p>Discord sunucusunda manuel moderasyon</p>
           </div>
-          <p class="service-desc">Sunucunuza özel komutlarla çalışan, kolay yönetilebilir botlar.</p>
+          <div class="showcase-arrow" aria-hidden="true">→</div>
+          <div class="showcase-after">
+            <span class="showcase-tag showcase-tag-accent">Sonra</span>
+            <p>7/24 kesintisiz çalışan otomatik moderasyon botu</p>
+            <span class="showcase-badge">Kesintisiz aktif</span>
+          </div>
         </div>
-        <div class="service-row">
-          <div class="service-top">
-            <span class="service-name">Veri toplama ve raporlama araçları</span>
-            <span class="service-price">Proje bazlı teklif</span>
+        <div class="showcase-row">
+          <div class="showcase-before">
+            <span class="showcase-tag">Önce</span>
+            <p>50 farklı siteden elle takip edilen fiyatlar</p>
           </div>
-          <p class="service-desc">Web sitelerinden veri toplayan ve otomatik rapor oluşturan araçlar.</p>
+          <div class="showcase-arrow" aria-hidden="true">→</div>
+          <div class="showcase-after">
+            <span class="showcase-tag showcase-tag-accent">Sonra</span>
+            <p>Otomatik veri toplama ve anlık fiyat uyarı sistemi</p>
+            <span class="showcase-badge">Anlık bildirim</span>
+          </div>
         </div>
-        <div class="service-row">
-          <div class="service-top">
-            <span class="service-name">Özel yazılım geliştirme</span>
-            <span class="service-price">Proje bazlı teklif</span>
+        <div class="showcase-row">
+          <div class="showcase-before">
+            <span class="showcase-tag">Önce</span>
+            <p>Dağınık Excel tabloları arasında kaybolan veriler</p>
           </div>
-          <p class="service-desc">İhtiyacınıza özel masaüstü veya komut satırı uygulamaları.</p>
+          <div class="showcase-arrow" aria-hidden="true">→</div>
+          <div class="showcase-after">
+            <span class="showcase-tag showcase-tag-accent">Sonra</span>
+            <p>Tek ekrandan yönetilen, canlı güncellenen panel</p>
+            <span class="showcase-badge">Tek bakışta</span>
+          </div>
         </div>
       </div>
     </div>
@@ -113,6 +145,7 @@
     <nav class="footer-nav">
       <a href="#anasayfa">Ana sayfa</a>
       <a href="#hizmetler">Hizmetler</a>
+      <a href="#calismalar">Çalışmalarımız</a>
       <a href="#iletisim">İletişim</a>
     </nav>
   </div>

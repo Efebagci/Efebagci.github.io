@@ -1,3 +1,112 @@
+// ------------------------------------------------------------------
+// PAKETLER: Buradan paketleri, fiyatları ve özellikleri düzenleyebilirsin.
+// - Yeni paket eklemek için listeye yeni bir obje ekle.
+// - "features" içinde: true  -> tabloda ✓ olarak görünür
+//                        false -> tabloda – olarak görünür
+//                        yazı  -> o yazı olduğu gibi görünür (ör. "3 revizyon")
+// - "highlight: true" olan paket "Önerilen" etiketiyle vurgulanır.
+// - Tüm paketlerdeki "features" satırları AYNI SIRADA ve AYNI İSİMLERLE
+//   olmalı; tablo satırları ilk paketin özellik listesinden oluşturulur.
+// ------------------------------------------------------------------
+const packages = [
+  {
+    name: 'Başlangıç',
+    price: '1.500₺',
+    priceNote: 'başlangıç fiyatı',
+    highlight: false,
+    features: {
+      'Özel script geliştirme': true,
+      'Discord bot entegrasyonu': false,
+      'Veri toplama & raporlama': false,
+      'Kaynak kodu teslimi': true,
+      'Revizyon hakkı': '1 revizyon',
+      '7/24 destek': false,
+      'Teslim süresi': '5-7 gün',
+    },
+  },
+  {
+    name: 'Profesyonel',
+    price: '3.500₺',
+    priceNote: 'başlangıç fiyatı',
+    highlight: true,
+    features: {
+      'Özel script geliştirme': true,
+      'Discord bot entegrasyonu': true,
+      'Veri toplama & raporlama': true,
+      'Kaynak kodu teslimi': true,
+      'Revizyon hakkı': '3 revizyon',
+      '7/24 destek': false,
+      'Teslim süresi': '3-5 gün',
+    },
+  },
+  {
+    name: 'Kurumsal',
+    price: 'Teklif üzerine',
+    priceNote: '',
+    highlight: false,
+    features: {
+      'Özel script geliştirme': true,
+      'Discord bot entegrasyonu': true,
+      'Veri toplama & raporlama': true,
+      'Kaynak kodu teslimi': true,
+      'Revizyon hakkı': 'Sınırsız',
+      '7/24 destek': true,
+      'Teslim süresi': 'Öncelikli',
+    },
+  },
+];
+
+function renderPackageTable() {
+  const table = document.getElementById('package-table');
+  if (!table) return;
+
+  const featureKeys = Object.keys(packages[0].features);
+
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  headRow.appendChild(document.createElement('th')).className = 'feature-col';
+
+  packages.forEach((pkg) => {
+    const th = document.createElement('th');
+    th.className = 'pkg-col' + (pkg.highlight ? ' pkg-col-highlight' : '');
+    th.innerHTML = `
+      ${pkg.highlight ? '<span class="pkg-badge">Önerilen</span>' : ''}
+      <div class="pkg-name">${pkg.name}</div>
+      <div class="pkg-price">${pkg.price}${pkg.priceNote ? `<span class="pkg-price-note">${pkg.priceNote}</span>` : ''}</div>
+    `;
+    headRow.appendChild(th);
+  });
+  thead.appendChild(headRow);
+
+  const tbody = document.createElement('tbody');
+  featureKeys.forEach((key) => {
+    const row = document.createElement('tr');
+    const labelCell = document.createElement('td');
+    labelCell.className = 'feature-label';
+    labelCell.textContent = key;
+    row.appendChild(labelCell);
+
+    packages.forEach((pkg) => {
+      const cell = document.createElement('td');
+      cell.className = 'pkg-col' + (pkg.highlight ? ' pkg-col-highlight' : '');
+      const value = pkg.features[key];
+      if (value === true) {
+        cell.innerHTML = '<span class="check-yes">✓</span>';
+      } else if (value === false) {
+        cell.innerHTML = '<span class="check-no">–</span>';
+      } else {
+        cell.textContent = value;
+      }
+      row.appendChild(cell);
+    });
+
+    tbody.appendChild(row);
+  });
+
+  table.appendChild(thead);
+  table.appendChild(tbody);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // Mobil menü aç/kapat
   const toggle = document.getElementById('nav-toggle');
@@ -14,6 +123,9 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   }
+
+  // Paket karşılaştırma tablosunu oluştur
+  renderPackageTable();
 
   // Terminal yazma animasyonu
   const body = document.getElementById('terminal-body');
