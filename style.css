@@ -31,50 +31,70 @@
 .package-table td.pkg-col { font-family: var(--font-mono); color: var(--text); }
 .check-yes { color: var(--accent); font-weight: 600; }
 .check-no { color: var(--text-muted); }
-.package-table tbody tr:last-child td {
+.package-table tbody tr:nth-last-child(2) td {
   border-top: 2px solid var(--accent);
   font-weight: 600;
   color: var(--accent);
   font-family: var(--font-mono);
   font-size: 1.05rem;
 }
+.package-table tbody tr.cta-row td { text-align: center; padding: 1.1rem; }
+.btn-table { width: 100%; justify-content: center; padding: 0.65rem 1rem; font-size: 0.82rem; }
 
-/* ===== Hizmetlerimiz (hizmet / açıklama / fiyat tablosu) ===== */
-.hizmetler-section { padding: 100px 0; border-top: 1px solid var(--border); }
-.services-table {
-  width: 100%;
-  min-width: 640px;
-  border-collapse: collapse;
-}
-.services-table th, .services-table td {
-  border: 1px solid var(--border);
-  padding: 1rem 1.25rem;
-  text-align: left;
-  vertical-align: top;
-}
-.services-table thead th {
+/* ===== Sadece kredi almak istiyorum ===== */
+.credit-subsection { margin-top: 4rem; }
+.section-subheading {
   font-family: var(--font-display);
+  font-size: 1.3rem;
   font-weight: 600;
-  font-size: 0.95rem;
   color: var(--text);
+  margin: 0 0 1.75rem;
+  padding-left: 1rem;
+  border-left: 3px solid var(--accent);
 }
-.services-table .service-name-cell {
+.credit-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+.credit-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.credit-card-featured { border-color: var(--accent); background: rgba(245, 48, 63, 0.06); }
+.credit-amount { font-family: var(--font-mono); font-size: 1.8rem; font-weight: 600; color: var(--text); }
+.credit-badge {
+  display: block;
+  min-height: 1.2rem;
+  margin-top: 0.4rem;
   font-family: var(--font-mono);
-  font-size: 1rem;
-  color: var(--text);
-  white-space: nowrap;
-}
-.services-table .service-desc-cell {
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  line-height: 1.6;
-}
-.services-table .service-price-cell {
-  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--accent);
-  font-weight: 600;
-  white-space: nowrap;
 }
+.credit-divider {
+  width: 100%;
+  border: none;
+  border-top: 1px dashed var(--border);
+  margin: 1rem 0;
+}
+.credit-price { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 600; color: var(--accent); }
+.credit-bonus {
+  display: block;
+  min-height: 1.2rem;
+  margin-top: 0.4rem;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.credit-card-featured .credit-bonus { color: var(--accent); font-weight: 500; }
+.credit-buy { margin-top: 1.25rem; width: 100%; justify-content: center; }
 
 :root {
   --bg: #07080B;
@@ -200,6 +220,8 @@ a { color: inherit; text-decoration: none; }
   text-transform: uppercase;
   letter-spacing: 0.06em;
   transition: background 0.1s ease, color 0.1s ease, border-color 0.1s ease;
+  border: none;
+  cursor: pointer;
 }
 .btn-primary {
   background: var(--accent);
@@ -207,7 +229,7 @@ a { color: inherit; text-decoration: none; }
   clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
 }
 .btn-primary:hover, .btn-primary:focus-visible { background: var(--accent-dim); }
-.btn-text { color: var(--text); border-bottom: 1px solid var(--border); padding: 0.85rem 0; }
+.btn-text { color: var(--text); border-bottom: 1px solid var(--border); padding: 0.85rem 0; background: none; }
 .btn-text:hover, .btn-text:focus-visible { border-color: var(--accent); color: var(--accent); }
 
 /* Terminal */
@@ -278,6 +300,43 @@ a { color: inherit; text-decoration: none; }
 .contact-item a { font-family: var(--font-mono); font-size: 1rem; }
 .contact-item a:hover, .contact-item a:focus-visible { color: var(--accent); }
 
+/* Hizmetlerimiz (hizmet / açıklama / fiyat tablosu) */
+.hizmetler-section { padding: 100px 0; border-top: 1px solid var(--border); }
+.services-table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+}
+.services-table th, .services-table td {
+  border: 1px solid var(--border);
+  padding: 1rem 1.25rem;
+  text-align: left;
+  vertical-align: top;
+}
+.services-table thead th {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+.services-table .service-name-cell {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  color: var(--text);
+  white-space: nowrap;
+}
+.services-table .service-desc-cell {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+.services-table .service-price-cell {
+  font-family: var(--font-mono);
+  color: var(--accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 /* Footer */
 .site-footer { position: relative; border-top: 1px solid var(--border); padding: 2rem 0; }
 .site-footer::before {
@@ -307,6 +366,10 @@ a { color: inherit; text-decoration: none; }
   .hero-inner, .contact-inner { grid-template-columns: 1fr; }
   .hero { padding: 128px 0 60px; }
   .hero-visual { order: -1; }
+}
+
+@media (max-width: 720px) {
+  .credit-cards { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 680px) {

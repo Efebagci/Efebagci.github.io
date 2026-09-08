@@ -2,8 +2,9 @@
 // PAKETLER: Buradan paketleri ve özellik değerlerini düzenleyebilirsin.
 // - "features" içindeki her satır tabloda bir satır olarak görünür.
 //   true -> ✓ olarak görünür, yazı -> o yazı olduğu gibi görünür.
-// - "Fiyat" satırının EN SONDA olması gerekir; tablo son satırı otomatik
-//   olarak vurgulu (kırmızı, kalın) gösterir.
+// - "Fiyat" satırının EN SONDA olması gerekir; tablo bu satırı otomatik
+//   olarak vurgulu (kırmızı, kalın) gösterir. Fiyatın altına her paket
+//   için otomatik bir "Satın al" butonu eklenir.
 // - Tüm paketlerdeki "features" AYNI SIRADA ve AYNI İSİMLERLE olmalı.
 // - "highlight: true" yaparsan o paket "Önerilen" etiketiyle vurgulanır.
 // ------------------------------------------------------------------
@@ -91,6 +92,20 @@ function renderPackageTable() {
 
     tbody.appendChild(row);
   });
+
+  // Fiyatın altına her paket için "Satın al" butonu ekle
+  const ctaRow = document.createElement('tr');
+  ctaRow.className = 'cta-row';
+  const ctaLabelCell = document.createElement('td');
+  ctaLabelCell.className = 'feature-label';
+  ctaRow.appendChild(ctaLabelCell);
+  packages.forEach((pkg) => {
+    const cell = document.createElement('td');
+    cell.className = 'pkg-col' + (pkg.highlight ? ' pkg-col-highlight' : '');
+    cell.innerHTML = '<button type="button" class="btn btn-primary btn-table">Satın al</button>';
+    ctaRow.appendChild(cell);
+  });
+  tbody.appendChild(ctaRow);
 
   table.appendChild(thead);
   table.appendChild(tbody);
