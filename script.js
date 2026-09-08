@@ -1,57 +1,47 @@
 // ------------------------------------------------------------------
-// PAKETLER: Buradan paketleri, fiyatları ve özellikleri düzenleyebilirsin.
-// - Yeni paket eklemek için listeye yeni bir obje ekle.
-// - "features" içinde: true  -> tabloda ✓ olarak görünür
-//                        false -> tabloda – olarak görünür
-//                        yazı  -> o yazı olduğu gibi görünür (ör. "3 revizyon")
-// - "highlight: true" olan paket "Önerilen" etiketiyle vurgulanır.
-// - Tüm paketlerdeki "features" satırları AYNI SIRADA ve AYNI İSİMLERLE
-//   olmalı; tablo satırları ilk paketin özellik listesinden oluşturulur.
+// PAKETLER: Buradan paketleri ve özellik değerlerini düzenleyebilirsin.
+// - "features" içindeki her satır tabloda bir satır olarak görünür.
+//   true -> ✓ olarak görünür, yazı -> o yazı olduğu gibi görünür.
+// - "Fiyat" satırının EN SONDA olması gerekir; tablo son satırı otomatik
+//   olarak vurgulu (kırmızı, kalın) gösterir.
+// - Tüm paketlerdeki "features" AYNI SIRADA ve AYNI İSİMLERLE olmalı.
+// - "highlight: true" yaparsan o paket "Önerilen" etiketiyle vurgulanır.
 // ------------------------------------------------------------------
 const packages = [
   {
-    name: 'Başlangıç',
-    price: '1.500₺',
-    priceNote: 'başlangıç fiyatı',
+    name: 'Premium',
     highlight: false,
     features: {
-      'Özel script geliştirme': true,
-      'Discord bot entegrasyonu': false,
-      'Veri toplama & raporlama': false,
-      'Kaynak kodu teslimi': true,
-      'Revizyon hakkı': '1 revizyon',
-      '7/24 destek': false,
-      'Teslim süresi': '5-7 gün',
+      'Kullanım kolaylığı': true,
+      'Anlık destek': 'Var',
+      'Kişiye özel modifikasyonlar': 'Yok',
+      'Scriptlerin maksimum kullanım ömrü': '10',
+      'Aylık kredi': '200C',
+      'Fiyat': '400 TL',
     },
   },
   {
-    name: 'Profesyonel',
-    price: '3.500₺',
-    priceNote: 'başlangıç fiyatı',
-    highlight: true,
+    name: 'Ekstra',
+    highlight: false,
     features: {
-      'Özel script geliştirme': true,
-      'Discord bot entegrasyonu': true,
-      'Veri toplama & raporlama': true,
-      'Kaynak kodu teslimi': true,
-      'Revizyon hakkı': '3 revizyon',
-      '7/24 destek': false,
-      'Teslim süresi': '3-5 gün',
+      'Kullanım kolaylığı': true,
+      'Anlık destek': 'Öncelikli',
+      'Kişiye özel modifikasyonlar': 'Sınırlı',
+      'Scriptlerin maksimum kullanım ömrü': '15',
+      'Aylık kredi': '400C',
+      'Fiyat': '650 TL',
     },
   },
   {
-    name: 'Kurumsal',
-    price: 'Teklif üzerine',
-    priceNote: '',
+    name: 'Max',
     highlight: false,
     features: {
-      'Özel script geliştirme': true,
-      'Discord bot entegrasyonu': true,
-      'Veri toplama & raporlama': true,
-      'Kaynak kodu teslimi': true,
-      'Revizyon hakkı': 'Sınırsız',
-      '7/24 destek': true,
-      'Teslim süresi': 'Öncelikli',
+      'Kullanım kolaylığı': true,
+      'Anlık destek': 'En başta',
+      'Kişiye özel modifikasyonlar': 'Var',
+      'Scriptlerin maksimum kullanım ömrü': '20',
+      'Aylık kredi': '600C',
+      'Fiyat': '900 TL',
     },
   },
 ];
@@ -72,7 +62,6 @@ function renderPackageTable() {
     th.innerHTML = `
       ${pkg.highlight ? '<span class="pkg-badge">Önerilen</span>' : ''}
       <div class="pkg-name">${pkg.name}</div>
-      <div class="pkg-price">${pkg.price}${pkg.priceNote ? `<span class="pkg-price-note">${pkg.priceNote}</span>` : ''}</div>
     `;
     headRow.appendChild(th);
   });

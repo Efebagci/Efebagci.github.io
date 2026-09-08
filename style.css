@@ -1,4 +1,4 @@
-/* ===== Paket karşılaştırma tablosu (Hizmetlerimiz) ===== */
+/* ===== Paket karşılaştırma tablosu (Paketler) ===== */
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .package-table {
   width: 100%;
@@ -14,15 +14,6 @@
 .package-table thead th.feature-col { border: none; }
 .package-table .pkg-col { text-align: center; }
 .pkg-name { font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; color: var(--text); }
-.pkg-price { font-family: var(--font-mono); color: var(--accent); margin-top: 0.35rem; font-size: 1.1rem; }
-.pkg-price-note {
-  display: block;
-  font-family: var(--font-body);
-  color: var(--text-muted);
-  font-size: 0.72rem;
-  font-weight: 400;
-  margin-top: 0.15rem;
-}
 .pkg-col-highlight { background: rgba(245, 48, 63, 0.06); border-color: var(--accent); }
 .pkg-badge {
   display: inline-block;
@@ -40,8 +31,15 @@
 .package-table td.pkg-col { font-family: var(--font-mono); color: var(--text); }
 .check-yes { color: var(--accent); font-weight: 600; }
 .check-no { color: var(--text-muted); }
+.package-table tbody tr:last-child td {
+  border-top: 2px solid var(--accent);
+  font-weight: 600;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+}
 
-/* ===== Örnek çalışmalarımız (X -> Y tablosu) ===== */
+/* ===== Hizmetlerimiz (X -> Y tablosu) ===== */
 .showcase { padding: 100px 0; border-top: 1px solid var(--border); }
 .showcase-list { display: flex; flex-direction: column; gap: 1.25rem; }
 .showcase-row {
