@@ -9,8 +9,8 @@
 const GAME_NAME = "Falsona";
 const ROUND_SECONDS = 120;
 const TURN_TIMEOUT_SECONDS = 25; // keep in sync with the backend's TURN_TIMEOUT_SECONDS
-const WS_URL = "ws://127.0.0.1:8000/ws";
-const API_URL = "http://127.0.0.1:8000"; // same backend, plain HTTP for the account endpoints
+const WS_URL = "wss://api.falsona.com/ws";
+const API_URL = "https://api.falsona.com";
 
 // ---------- screen switching ----------
 const screens = {
