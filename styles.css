@@ -225,6 +225,18 @@ button {
 .dots span:nth-child(1) { animation-delay: 0s; }
 .dots span:nth-child(2) { animation-delay: 0.2s; }
 .dots span:nth-child(3) { animation-delay: 0.4s; }
+.waiting-note {
+  position: absolute;
+  bottom: 24px;
+  left: 16px;
+  right: 16px;
+  margin: 0;
+  text-align: center;
+  color: var(--grey);
+  font-size: 0.75rem;
+}
+#screen-waiting { position: relative; }
+
 @keyframes dot-fade {
   0%, 20% { opacity: 0; }
   50% { opacity: 1; }
@@ -351,6 +363,8 @@ button {
   padding: 6px;
 }
 .btn-text:focus-visible { outline: 2px solid var(--yellow); }
+.btn-text:disabled { opacity: 0.6; cursor: not-allowed; text-decoration: none; }
+.btn-text[hidden] { display: none; }
 
 /* ---------- guess screen ---------- */
 #screen-guess {
@@ -561,3 +575,21 @@ button {
   .guess-buttons { flex-direction: column; width: 100%; }
   .btn-guess { width: 100%; }
 }
+
+/* ---------- dropped connection ---------- */
+.connection-banner {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  margin: 0;
+  padding: 8px 14px;
+  background: var(--ink-soft);
+  border: 2px solid var(--yellow);
+  border-radius: 2px;
+  color: var(--paper);
+  font-size: 0.85rem;
+  z-index: 20;
+}
+.connection-banner[hidden] { display: none; }
