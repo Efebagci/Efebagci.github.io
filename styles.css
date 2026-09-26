@@ -380,6 +380,7 @@ button {
 .btn-guess--human { background: var(--pink); color: var(--ink); }
 .btn-guess--bot   { background: var(--yellow); color: var(--ink); padding: 18px 36px; }
 .btn-guess:focus-visible { outline: 2px solid var(--paper); outline-offset: 3px; }
+.btn-guess:disabled { opacity: 0.45; cursor: wait; }
 
 /* ---------- result screen ---------- */
 #screen-result {

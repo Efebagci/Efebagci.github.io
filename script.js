@@ -69,7 +69,9 @@ document.getElementById("gate-form").addEventListener("submit", async (e) => {
       body: JSON.stringify({ password: input.value }),
     });
     if (!res.ok) {
-      errorEl.textContent = "Incorrect password.";
+      errorEl.textContent = res.status === 429
+        ? "Too many attempts. Try again in a few minutes."
+        : "Incorrect password.";
       errorEl.hidden = false;
       input.value = "";
       input.focus();
@@ -90,8 +92,11 @@ let transcript = [];           // {from: 'me'|'partner', text: string}
 let timerHandle = null;
 let secondsLeft = ROUND_SECONDS;
 let socket = null;
-let currentPartnerType = null; // comes from the server: 'human' | 'bot'
+let matched = false;           // true once the server has paired us for this round
+let roundTruth = null;         // 'human' | 'bot' — only known once the server has scored our guess
 let roundEnded = false;
+let roundResolved = false;     // true once this round's result is on screen
+let awaitingGuessResult = false;
 let myTurn = false;            // only one side may send at a time
 let partnerGuess = null;       // the partner's guess about you, if they're human ('human' | 'bot' | null)
 
@@ -152,8 +157,8 @@ function rankOrder(tier, division) {
 // Applies a win/loss to a rank, handling promotion, demotion, and the
 // Wood-I floor / Diamond-V ceiling. Returns the new rank plus the RP
 // delta and whether a promotion/demotion happened. Used for guests only —
-// logged-in accounts get this same formula computed by the server instead,
-// so a modified client can't inflate its own rank.
+// logged-in accounts get this same formula applied by the server when it
+// scores the guess, so a modified client can't inflate its own rank.
 function applyMatchResult(rank, won) {
   const delta = won ? WIN_RP[rank.tier] : LOSS_RP[rank.tier];
   let { tier, division, rp } = rank;
@@ -244,6 +249,14 @@ function renderAuthStatus() {
 }
 
 function logout() {
+  if (authToken) {
+    // best effort: if this fails the token still expires on its own later
+    fetch(`${API_URL}/auth/logout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: authToken }),
+    }).catch(() => {});
+  }
   authToken = null;
   authUsername = null;
   serverRank = null;
@@ -443,16 +456,25 @@ function renderTranscriptInto(container) {
 // ---------- WebSocket connection ----------
 function connectSocket() {
   if (socket) socket.close();
-  socket = new WebSocket(`${WS_URL}?gate_token=${encodeURIComponent(gateToken || "")}`);
+  // a logged-in player's token lets the server score this round against their account
+  const authParam = authToken ? `&token=${encodeURIComponent(authToken)}` : "";
+  const ws = new WebSocket(`${WS_URL}?gate_token=${encodeURIComponent(gateToken || "")}${authParam}`);
+  socket = ws;
 
-  socket.addEventListener("message", (event) => {
+  // Events from a previous round's socket (still closing after "Play
+  // again") must not touch the new round, hence the `socket !== ws` checks.
+  ws.addEventListener("message", (event) => {
+    if (socket !== ws) return;
     handleServerMessage(JSON.parse(event.data));
   });
 
-  socket.addEventListener("close", () => {
-    if (currentPartnerType === null && screens.waiting.classList.contains("is-active")) {
+  ws.addEventListener("close", () => {
+    if (socket !== ws) return;
+    if (!matched && screens.waiting.classList.contains("is-active")) {
       document.querySelector(".waiting-label").textContent =
         "Couldn't reach the server — is the backend running? (see README)";
+    } else if (awaitingGuessResult) {
+      showUnscoredResult();
     }
   });
 }
@@ -460,7 +482,9 @@ function connectSocket() {
 function handleServerMessage(data) {
   switch (data.type) {
     case "matched":
-      currentPartnerType = data.partner_type; // 'human' | 'bot'
+      // deliberately doesn't say who the partner is — that only comes back
+      // with "guess_result", after we've locked in a guess
+      matched = true;
       showScreen("chat");
       setMyTurn(data.your_turn);
       timerHandle = setInterval(tick, 1000);
@@ -474,7 +498,7 @@ function handleServerMessage(data) {
       setMyTurn(false);
       break;
     case "you_timed_out":
-      handleTimeoutLoss(data.truth);
+      handleTimeoutLoss(data);
       break;
     case "partner_timed_out":
       addSystemNote("partner took too long to respond");
@@ -487,9 +511,14 @@ function handleServerMessage(data) {
     case "round_end":
       endRound();
       break;
+    case "guess_result":
+      awaitingGuessResult = false;
+      if (data.partner_guess) partnerGuess = data.partner_guess;
+      finishRound(data, data.correct ? "Correct guess" : "Wrong guess");
+      break;
     case "partner_guess":
-      // arrives after the round ends, whenever the partner makes their
-      // guess — could be before or after we make ours
+      // the server only sends this once we've guessed too, so it can't
+      // give the answer away — it may still land just before our result
       partnerGuess = data.value;
       if (screens.result.classList.contains("is-active")) {
         renderPartnerGuess();
@@ -503,8 +532,12 @@ function startRound() {
   chatLog.innerHTML = "";
   secondsLeft = ROUND_SECONDS;
   roundEnded = false;
-  currentPartnerType = null;
+  roundResolved = false;
+  awaitingGuessResult = false;
+  matched = false;
+  roundTruth = null;
   partnerGuess = null;
+  setGuessButtonsDisabled(false);
   setMyTurn(false); // locked until the "matched" message says otherwise
   updateTimerDisplay();
   showScreen("waiting");
@@ -548,7 +581,13 @@ document.getElementById("chat-form").addEventListener("submit", (e) => {
   setMyTurn(false); // used your turn — locked until the partner replies
 });
 
-document.getElementById("btn-early-guess").addEventListener("click", endRound);
+document.getElementById("btn-early-guess").addEventListener("click", () => {
+  // tell the server we're done chatting, so the round closes for the partner too
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify({ type: "end_chat" }));
+  }
+  endRound();
+});
 document.getElementById("btn-play").addEventListener("click", startRound);
 document.getElementById("btn-again").addEventListener("click", startRound);
 
@@ -564,30 +603,43 @@ function saveScore(score) {
   localStorage.setItem("falsona_score", JSON.stringify(score));
 }
 
+function setGuessButtonsDisabled(disabled) {
+  document.querySelectorAll(".btn-guess").forEach((btn) => { btn.disabled = disabled; });
+}
+
 document.querySelectorAll(".btn-guess").forEach((btn) => {
-  btn.addEventListener("click", async () => {
-    const guess = btn.dataset.guess; // 'human' | 'bot'
-    const truth = currentPartnerType || "bot";
-    const correct = guess === truth;
-
-    // send our guess to a human partner before the socket goes away —
-    // it's what lets their result screen show what we guessed about them
-    if (truth === "human" && socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: "guess", value: guess }));
+  btn.addEventListener("click", () => {
+    if (awaitingGuessResult || roundResolved) return;
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      showUnscoredResult();
+      return;
     }
-
-    await finishRound(correct, truth, correct ? "Correct guess" : "Wrong guess");
+    // the server knows who the partner was and decides whether we're right;
+    // the answer arrives as "guess_result"
+    awaitingGuessResult = true;
+    setGuessButtonsDisabled(true);
+    socket.send(JSON.stringify({ type: "guess", value: btn.dataset.guess }));
   });
 });
 
-async function handleTimeoutLoss(truth) {
-  if (roundEnded) return;
-  roundEnded = true;
+function handleTimeoutLoss(result) {
+  // the server has already scored this as a loss — show it even if we
+  // were already on the guess screen
   clearInterval(timerHandle);
-  await finishRound(false, truth, "Timed out");
+  roundEnded = true;
+  awaitingGuessResult = false;
+  finishRound(result, "Timed out");
 }
 
-async function finishRound(correct, truth, verdictLabel) {
+// `result` is what the server sent in "guess_result" / "you_timed_out":
+// {truth, correct, rank_before, rank, delta, event}. The rank fields are
+// only filled in for logged-in players, whose rank the server keeps.
+function finishRound(result, verdictLabel) {
+  if (roundResolved) return;
+  roundResolved = true;
+  roundTruth = result.truth;
+  const correct = result.correct;
+
   const score = loadScore();
   score.total += 1;
   if (correct) score.correct += 1;
@@ -595,30 +647,24 @@ async function finishRound(correct, truth, verdictLabel) {
 
   let rankBefore, rankAfter, delta, event;
 
-  if (isAuthenticated()) {
+  if (result.rank) {
     // logged in: the server is the source of truth for RP, so it can't be
     // tampered with client-side, and the rank is shared across devices.
+    rankBefore = result.rank_before;
+    rankAfter = result.rank;
+    delta = result.delta;
+    event = result.event;
+    serverRank = rankAfter;
+  } else if (isAuthenticated()) {
+    // the server didn't recognise our account (session expired, or the
+    // database was reset) — show a local estimate without saving it, then
+    // re-check the session, which drops back to guest mode if it's gone
     rankBefore = serverRank;
-    try {
-      const res = await fetch(`${API_URL}/api/report-result`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: authToken, correct, gate_token: gateToken }),
-      });
-      if (!res.ok) throw new Error("bad response");
-      const data = await res.json();
-      rankAfter = data.rank;
-      delta = data.delta;
-      event = data.event;
-      serverRank = rankAfter;
-    } catch {
-      // couldn't reach the server to confirm — show a local estimate but
-      // don't touch serverRank, since nothing was actually persisted
-      const local = applyMatchResult(rankBefore, correct);
-      rankAfter = local.rank;
-      delta = local.delta;
-      event = local.event;
-    }
+    const local = applyMatchResult(rankBefore, correct);
+    rankAfter = local.rank;
+    delta = local.delta;
+    event = local.event;
+    initAuth();
   } else {
     rankBefore = loadRank();
     const local = applyMatchResult(rankBefore, correct);
@@ -628,12 +674,40 @@ async function finishRound(correct, truth, verdictLabel) {
     saveRank(rankAfter);
   }
 
-  showResult(verdictLabel, truth, score, rankBefore, rankAfter, delta, event);
+  showResult(verdictLabel, roundTruth, score, rankBefore, rankAfter, delta, event);
+}
+
+// Lost the connection before the server could score the guess, so there's
+// no answer to show and nothing counts.
+function showUnscoredResult() {
+  if (roundResolved) return;
+  roundResolved = true;
+  awaitingGuessResult = false;
+  clearInterval(timerHandle);
+
+  const rank = currentRank();
+  document.getElementById("result-verdict").textContent = "Not scored";
+  document.getElementById("result-detail").textContent = "Lost connection to the server.";
+  document.getElementById("result-partner-guess").hidden = true;
+  const partnerLines = transcript.filter((m) => m.from === "partner");
+  const quote = partnerLines.length ? pickRandom(partnerLines).text : "…";
+  document.getElementById("result-quote").textContent = `"${quote}"`;
+  const score = loadScore();
+  document.getElementById("result-score").textContent =
+    `Your score on this browser: ${score.correct}/${score.total}`;
+  document.getElementById("result-rank").textContent =
+    `${rankLabel(rank.tier, rank.division)} · no change`;
+  const eventEl = document.getElementById("result-rank-event");
+  eventEl.textContent = ""; // the share card draws this text even when it's hidden
+  eventEl.hidden = true;
+
+  renderTranscriptInto(resultChatLog);
+  showScreen("result");
 }
 
 function renderPartnerGuess() {
   const el = document.getElementById("result-partner-guess");
-  if (currentPartnerType !== "human") {
+  if (roundTruth !== "human") {
     el.hidden = true;
     return;
   }
