@@ -26,6 +26,28 @@ function showScreen(name) {
   screens[name].classList.add("is-active");
 }
 
+// ---------- slow-server notice ----------
+// The backend runs on Render's free tier, which can take up to a minute to
+// wake up after a quiet period. When a request is taking a while, say so,
+// instead of leaving people staring at a screen that seems stuck.
+const WAKE_NOTICE_DELAY_MS = 3000;
+const WAKE_NOTICE = "Waking up the server — this can take up to a minute…";
+
+// Awaits `promise`; if it hasn't settled after a few seconds, shows
+// WAKE_NOTICE in `el` until it does.
+async function withWakeNotice(promise, el) {
+  const timer = setTimeout(() => {
+    el.textContent = WAKE_NOTICE;
+    el.hidden = false;
+  }, WAKE_NOTICE_DELAY_MS);
+  try {
+    return await promise;
+  } finally {
+    clearTimeout(timer);
+    el.hidden = true;
+  }
+}
+
 // ---------- temporary development password gate ----------
 // This is unrelated to the account login system — it's just a soft,
 // site-wide gate for while Falsona is still being built. The password
@@ -44,15 +66,36 @@ function unlockGateUI() {
 
 async function initGate() {
   if (!gateToken) return;
+  // a token from an earlier visit: check it instead of asking for the password
+  const form = document.getElementById("gate-form");
+  const statusEl = document.getElementById("gate-status");
+  const errorEl = document.getElementById("gate-error");
+  form.hidden = true;
+  statusEl.textContent = "Checking access…";
+  statusEl.hidden = false;
   try {
-    const res = await fetch(`${API_URL}/gate/check?gate_token=${encodeURIComponent(gateToken)}`);
-    if (!res.ok) throw new Error("invalid gate token");
-    unlockGateUI();
+    const res = await withWakeNotice(
+      fetch(`${API_URL}/gate/check?gate_token=${encodeURIComponent(gateToken)}`),
+      statusEl,
+    );
+    if (res.ok) {
+      unlockGateUI();
+      return;
+    }
+    if (res.status === 401) {
+      // the token was revoked (the password changed) — ask again
+      gateToken = null;
+      localStorage.removeItem(GATE_TOKEN_KEY);
+    } else {
+      errorEl.textContent = "Couldn't reach the server. Try again in a moment.";
+      errorEl.hidden = false;
+    }
   } catch {
-    // stored token is stale (e.g. the backend restarted) — ask again
-    gateToken = null;
-    localStorage.removeItem(GATE_TOKEN_KEY);
+    // network trouble says nothing about the token, so keep it for next time
+    errorEl.textContent = "Couldn't reach the server. Try again in a moment.";
+    errorEl.hidden = false;
   }
+  form.hidden = false;
 }
 initGate();
 
@@ -63,11 +106,14 @@ document.getElementById("gate-form").addEventListener("submit", async (e) => {
   errorEl.hidden = true;
 
   try {
-    const res = await fetch(`${API_URL}/gate/unlock`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: input.value }),
-    });
+    const res = await withWakeNotice(
+      fetch(`${API_URL}/gate/unlock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: input.value }),
+      }),
+      document.getElementById("gate-status"),
+    );
     if (!res.ok) {
       errorEl.textContent = res.status === 429
         ? "Too many attempts. Try again in a few minutes."
@@ -270,16 +316,19 @@ async function initAuth() {
   if (!authToken) return;
   try {
     const res = await fetch(`${API_URL}/auth/me?token=${encodeURIComponent(authToken)}&gate_token=${encodeURIComponent(gateToken || "")}`);
-    if (!res.ok) throw new Error("invalid session");
-    const data = await res.json();
-    authUsername = data.username;
-    serverRank = data.rank;
+    if (res.ok) {
+      const data = await res.json();
+      authUsername = data.username;
+      serverRank = data.rank;
+    } else if (res.status === 401) {
+      // the session expired or was logged out — go back to guest mode
+      authToken = null;
+      authUsername = null;
+      localStorage.removeItem("falsona_token");
+      localStorage.removeItem("falsona_username");
+    }
   } catch {
-    // stored token is no longer valid (e.g. the local database was reset) — go back to guest mode
-    authToken = null;
-    authUsername = null;
-    localStorage.removeItem("falsona_token");
-    localStorage.removeItem("falsona_username");
+    // network trouble says nothing about the session, so keep the token
   }
   renderAuthStatus();
   renderRankBadge();
@@ -318,11 +367,14 @@ document.getElementById("auth-form").addEventListener("submit", async (e) => {
   errorEl.hidden = true;
 
   try {
-    const res = await fetch(`${API_URL}/auth/${authMode}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password, gate_token: gateToken }),
-    });
+    const res = await withWakeNotice(
+      fetch(`${API_URL}/auth/${authMode}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password, gate_token: gateToken }),
+      }),
+      document.getElementById("auth-status-note"),
+    );
     const data = await res.json();
     if (!res.ok) {
       errorEl.textContent =
@@ -355,7 +407,10 @@ document.getElementById("btn-leaderboard").addEventListener("click", async () =>
   modal.hidden = false;
 
   try {
-    const res = await fetch(`${API_URL}/api/leaderboard?gate_token=${encodeURIComponent(gateToken || "")}`);
+    const res = await withWakeNotice(
+      fetch(`${API_URL}/api/leaderboard?gate_token=${encodeURIComponent(gateToken || "")}`),
+      loadingItem,
+    );
     if (!res.ok) throw new Error("bad response");
     const data = await res.json();
     list.innerHTML = "";
@@ -461,6 +516,16 @@ function connectSocket() {
   const ws = new WebSocket(`${WS_URL}?gate_token=${encodeURIComponent(gateToken || "")}${authParam}`);
   socket = ws;
 
+  const wakeTimer = setTimeout(() => {
+    if (socket === ws && ws.readyState === WebSocket.CONNECTING) {
+      document.querySelector(".waiting-label").textContent = WAKE_NOTICE;
+    }
+  }, WAKE_NOTICE_DELAY_MS);
+  ws.addEventListener("open", () => {
+    clearTimeout(wakeTimer);
+    if (socket === ws) resetWaitingLabel();
+  });
+
   // Events from a previous round's socket (still closing after "Play
   // again") must not touch the new round, hence the `socket !== ws` checks.
   ws.addEventListener("message", (event) => {
@@ -469,6 +534,7 @@ function connectSocket() {
   });
 
   ws.addEventListener("close", () => {
+    clearTimeout(wakeTimer);
     if (socket !== ws) return;
     if (!matched && screens.waiting.classList.contains("is-active")) {
       document.querySelector(".waiting-label").textContent =
@@ -541,9 +607,13 @@ function startRound() {
   setMyTurn(false); // locked until the "matched" message says otherwise
   updateTimerDisplay();
   showScreen("waiting");
+  resetWaitingLabel();
+  connectSocket();
+}
+
+function resetWaitingLabel() {
   document.querySelector(".waiting-label").innerHTML =
     'Finding a match<span class="dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>';
-  connectSocket();
 }
 
 function tick() {
