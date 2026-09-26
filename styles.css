@@ -96,6 +96,7 @@ button {
   text-align: center;
 }
 #gate-form input:focus-visible { outline: 2px solid var(--pink); }
+#gate-form[hidden] { display: none; }
 
 /* ---------- landing screen ---------- */
 #screen-landing { justify-content: space-between; }
@@ -518,6 +519,13 @@ button {
 
 .auth-error {
   color: var(--error);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+/* neutral progress line, e.g. while the server wakes up */
+.status-note {
+  color: var(--grey);
   font-size: 0.85rem;
   margin: 0;
 }
