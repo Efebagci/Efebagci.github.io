@@ -157,8 +157,10 @@ const TIERS = [
 ];
 const DIVISION_LABELS = ["I", "II", "III", "IV", "V"];
 const RP_PER_DIVISION = [20, 30, 45, 65, 90, 120]; // RP to fill one division, by tier
-const WIN_RP = [12, 10, 9, 7, 6, 5];               // RP for a correct guess, by tier
-const LOSS_RP = [-8, -10, -12, -15, -18, -22];     // RP for a wrong guess, by tier (negative)
+// A win is never worth more than a loss costs, so blind guessing can't pay
+// off (see round_weight() in the backend's rank.py). Keep in sync with rank.py.
+const WIN_RP = [10, 10, 9, 7, 6, 5];               // RP for a correct guess, by tier
+const LOSS_RP = [-10, -10, -12, -15, -18, -22];    // RP for a wrong guess, by tier (negative)
 
 function loadRank() {
   try {
@@ -200,13 +202,22 @@ function rankOrder(tier, division) {
   return tier * DIVISION_LABELS.length + division;
 }
 
+// The server weights every round by how rare its answer currently is and
+// sends that weight with the result. Mirrors weighted_delta() in rank.py:
+// rounds half away from zero, never to 0.
+function weightedDelta(tier, won, weight) {
+  const base = won ? WIN_RP[tier] : LOSS_RP[tier];
+  const magnitude = Math.max(1, Math.floor(Math.abs(base) * weight + 0.5));
+  return won ? magnitude : -magnitude;
+}
+
 // Applies a win/loss to a rank, handling promotion, demotion, and the
 // Wood-I floor / Diamond-V ceiling. Returns the new rank plus the RP
 // delta and whether a promotion/demotion happened. Used for guests only —
 // logged-in accounts get this same formula applied by the server when it
 // scores the guess, so a modified client can't inflate its own rank.
-function applyMatchResult(rank, won) {
-  const delta = won ? WIN_RP[rank.tier] : LOSS_RP[rank.tier];
+function applyMatchResult(rank, won, weight) {
+  const delta = weightedDelta(rank.tier, won, weight);
   let { tier, division, rp } = rank;
   rp += delta;
 
@@ -484,6 +495,7 @@ function addBubble(from, text) {
   bubble.textContent = text;
   chatLog.appendChild(bubble);
   chatLog.scrollTop = chatLog.scrollHeight;
+  updateGuessNowButton();
 }
 
 function addSystemNote(text) {
@@ -509,12 +521,47 @@ function renderTranscriptInto(container) {
 }
 
 // ---------- WebSocket connection ----------
-function connectSocket() {
-  if (socket) socket.close();
-  // a logged-in player's token lets the server score this round against their account
-  const authParam = authToken ? `&token=${encodeURIComponent(authToken)}` : "";
-  const ws = new WebSocket(`${WS_URL}?gate_token=${encodeURIComponent(gateToken || "")}${authParam}`);
+// A dropped connection mid-round isn't the end: the server keeps the round
+// and the client reconnects with the round's resume token. The server
+// counts the round as abandoned (a loss) after 10 seconds, but keeps its
+// result around a little longer, so we keep trying for a bit past that to
+// at least show what happened.
+const RECONNECT_RETRY_MS = 1000;
+const RECONNECT_GIVE_UP_MS = 30000;
+let resumeToken = null;
+let reconnectDeadline = null;  // set while we're trying to reconnect
+let pendingGuess = null;       // the guess we sent (or will send once reconnected)
+let minMessages = 3;           // messages each side needs before "Guess now" works (the server says)
+let serverBusy = false;        // the server turned this search away (see "busy")
+
+const connectionBanner = document.getElementById("connection-banner");
+
+function openSocket(extraParams) {
+  const ws = new WebSocket(`${WS_URL}?gate_token=${encodeURIComponent(gateToken || "")}${extraParams}`);
   socket = ws;
+
+  // Events from an older socket (still closing after "Play again", or
+  // replaced by a reconnection) must not touch the current round, hence
+  // the `socket !== ws` checks.
+  ws.addEventListener("message", (event) => {
+    if (socket !== ws) return;
+    handleServerMessage(JSON.parse(event.data));
+  });
+  ws.addEventListener("close", () => {
+    if (socket !== ws) return;
+    handleSocketClosed();
+  });
+  return ws;
+}
+
+function connectSocket() {
+  if (socket) {
+    const old = socket;
+    socket = null;
+    old.close();
+  }
+  // a logged-in player's token lets the server score this round against their account
+  const ws = openSocket(authToken ? `&token=${encodeURIComponent(authToken)}` : "");
 
   const wakeTimer = setTimeout(() => {
     if (socket === ws && ws.readyState === WebSocket.CONNECTING) {
@@ -525,35 +572,71 @@ function connectSocket() {
     clearTimeout(wakeTimer);
     if (socket === ws) resetWaitingLabel();
   });
+  ws.addEventListener("close", () => clearTimeout(wakeTimer));
+}
 
-  // Events from a previous round's socket (still closing after "Play
-  // again") must not touch the new round, hence the `socket !== ws` checks.
-  ws.addEventListener("message", (event) => {
-    if (socket !== ws) return;
-    handleServerMessage(JSON.parse(event.data));
-  });
-
-  ws.addEventListener("close", () => {
-    clearTimeout(wakeTimer);
-    if (socket !== ws) return;
-    if (!matched && screens.waiting.classList.contains("is-active")) {
-      document.querySelector(".waiting-label").textContent =
-        "Couldn't reach the server — is the backend running? (see README)";
-    } else if (awaitingGuessResult) {
-      showUnscoredResult();
+function handleSocketClosed() {
+  if (!matched) {
+    if (!serverBusy && screens.waiting.classList.contains("is-active")) {
+      showWaitingProblem("Couldn't reach the server. Try again in a moment.");
     }
-  });
+    return;
+  }
+  if (roundResolved) return; // the round is over and scored, nothing left to do
+  tryReconnect();
+}
+
+function tryReconnect() {
+  if (reconnectDeadline === null) {
+    reconnectDeadline = Date.now() + RECONNECT_GIVE_UP_MS;
+    connectionBanner.textContent = "Connection lost. Reconnecting…";
+    connectionBanner.hidden = false;
+  }
+  if (Date.now() > reconnectDeadline) {
+    giveUpReconnecting();
+    return;
+  }
+  setTimeout(() => {
+    if (roundResolved || reconnectDeadline === null) return;
+    openSocket(`&resume=${encodeURIComponent(resumeToken)}`); // failing again lands back here
+  }, RECONNECT_RETRY_MS);
+}
+
+function stopReconnecting() {
+  reconnectDeadline = null;
+  connectionBanner.hidden = true;
+}
+
+function giveUpReconnecting() {
+  stopReconnecting();
+  showUnscoredResult();
+  if (authToken) initAuth(); // the server may have scored the round as abandoned
 }
 
 function handleServerMessage(data) {
   switch (data.type) {
     case "matched":
       // deliberately doesn't say who the partner is — that only comes back
-      // with "guess_result", after we've locked in a guess
+      // with the result, after we've locked in a guess
       matched = true;
+      resumeToken = data.resume_token;
+      minMessages = data.min_messages;
       showScreen("chat");
       setMyTurn(data.your_turn);
+      updateGuessNowButton();
       timerHandle = setInterval(tick, 1000);
+      break;
+    case "resumed":
+      handleResumed(data);
+      break;
+    case "resume_failed":
+      giveUpReconnecting();
+      break;
+    case "busy":
+      serverBusy = true;
+      showWaitingProblem(data.reason === "ip"
+        ? "You've played a lot this hour. Take a short break and come back soon."
+        : "Falsona is busy right now. Try again in a little while.");
       break;
     case "message":
       addBubble("partner", data.text);
@@ -563,8 +646,13 @@ function handleServerMessage(data) {
       // client and server state drifted somehow — resync to locked
       setMyTurn(false);
       break;
+    case "not_yet":
+      // the server wants more messages before the round can end early:
+      // back to the chat
+      backToChat();
+      break;
     case "you_timed_out":
-      handleTimeoutLoss(data);
+      finishRound(data);
       break;
     case "partner_timed_out":
       addSystemNote("partner took too long to respond");
@@ -578,9 +666,8 @@ function handleServerMessage(data) {
       endRound();
       break;
     case "guess_result":
-      awaitingGuessResult = false;
       if (data.partner_guess) partnerGuess = data.partner_guess;
-      finishRound(data, data.correct ? "Correct guess" : "Wrong guess");
+      finishRound(data);
       break;
     case "partner_guess":
       // the server only sends this once we've guessed too, so it can't
@@ -593,6 +680,31 @@ function handleServerMessage(data) {
   }
 }
 
+// After a reconnection the server sends its copy of the round, which
+// includes anything that happened while we were offline.
+function handleResumed(data) {
+  stopReconnecting();
+  minMessages = data.min_messages;
+  if (data.partner_guess) partnerGuess = data.partner_guess;
+  transcript = [];
+  chatLog.innerHTML = "";
+  data.transcript.forEach(({ from, text }) => addBubble(from, text));
+
+  if (data.result) {
+    finishRound(data.result);
+  } else if (data.round_over) {
+    if (data.ended_reason === "partner_timed_out") addSystemNote("partner took too long to respond");
+    if (data.ended_reason === "partner_left") addSystemNote("partner disconnected");
+    endRound();
+    if (awaitingGuessResult) socket.send(JSON.stringify({ type: "guess", value: pendingGuess }));
+  } else {
+    secondsLeft = data.seconds_left;
+    updateTimerDisplay();
+    if (roundEnded) backToChat(); // our "Guess now" never reached the server
+    setMyTurn(data.your_turn);
+  }
+}
+
 function startRound() {
   transcript = [];
   chatLog.innerHTML = "";
@@ -600,14 +712,20 @@ function startRound() {
   roundEnded = false;
   roundResolved = false;
   awaitingGuessResult = false;
+  pendingGuess = null;
   matched = false;
+  serverBusy = false;
+  resumeToken = null;
+  stopReconnecting();
   roundTruth = null;
   partnerGuess = null;
   setGuessButtonsDisabled(false);
   setMyTurn(false); // locked until the "matched" message says otherwise
   updateTimerDisplay();
+  updateGuessNowButton();
   showScreen("waiting");
   resetWaitingLabel();
+  document.getElementById("btn-waiting-back").hidden = true;
   connectSocket();
 }
 
@@ -616,12 +734,15 @@ function resetWaitingLabel() {
     'Finding a match<span class="dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>';
 }
 
+function showWaitingProblem(text) {
+  document.querySelector(".waiting-label").textContent = text;
+  document.getElementById("btn-waiting-back").hidden = false;
+}
+
 function tick() {
-  secondsLeft -= 1;
+  // The server ends the round; at 00:00 we just wait for it to say so.
+  if (secondsLeft > 0) secondsLeft -= 1;
   updateTimerDisplay();
-  if (secondsLeft <= 0) {
-    endRound();
-  }
 }
 
 function updateTimerDisplay() {
@@ -639,6 +760,34 @@ function endRound() {
   showScreen("guess");
 }
 
+function backToChat() {
+  if (!roundEnded || roundResolved) return;
+  roundEnded = false;
+  awaitingGuessResult = false;
+  pendingGuess = null;
+  setGuessButtonsDisabled(false);
+  clearInterval(timerHandle);
+  timerHandle = setInterval(tick, 1000);
+  showScreen("chat");
+  updateGuessNowButton();
+}
+
+// "Guess now" unlocks once both sides have sent minMessages messages.
+function messagesStillNeeded() {
+  const mine = transcript.filter((m) => m.from === "me").length;
+  const theirs = transcript.length - mine;
+  return Math.max(0, minMessages - mine) + Math.max(0, minMessages - theirs);
+}
+
+function updateGuessNowButton() {
+  const btn = document.getElementById("btn-early-guess");
+  const needed = messagesStillNeeded();
+  btn.disabled = needed > 0;
+  btn.textContent = needed > 0
+    ? `Guess now (after ${needed} more message${needed === 1 ? "" : "s"})`
+    : "Guess now";
+}
+
 document.getElementById("chat-form").addEventListener("submit", (e) => {
   e.preventDefault();
   if (!myTurn || !socket || socket.readyState !== WebSocket.OPEN) return;
@@ -652,6 +801,7 @@ document.getElementById("chat-form").addEventListener("submit", (e) => {
 });
 
 document.getElementById("btn-early-guess").addEventListener("click", () => {
+  if (messagesStillNeeded() > 0) return;
   // tell the server we're done chatting, so the round closes for the partner too
   if (socket && socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify({ type: "end_chat" }));
@@ -660,6 +810,14 @@ document.getElementById("btn-early-guess").addEventListener("click", () => {
 });
 document.getElementById("btn-play").addEventListener("click", startRound);
 document.getElementById("btn-again").addEventListener("click", startRound);
+document.getElementById("btn-waiting-back").addEventListener("click", () => {
+  if (socket) {
+    const old = socket;
+    socket = null;
+    old.close();
+  }
+  showScreen("landing");
+});
 
 // ---------- guess & score ----------
 function loadScore() {
@@ -680,33 +838,36 @@ function setGuessButtonsDisabled(disabled) {
 document.querySelectorAll(".btn-guess").forEach((btn) => {
   btn.addEventListener("click", () => {
     if (awaitingGuessResult || roundResolved) return;
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
-      showUnscoredResult();
-      return;
-    }
     // the server knows who the partner was and decides whether we're right;
     // the answer arrives as "guess_result"
     awaitingGuessResult = true;
+    pendingGuess = btn.dataset.guess;
     setGuessButtonsDisabled(true);
-    socket.send(JSON.stringify({ type: "guess", value: btn.dataset.guess }));
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: "guess", value: pendingGuess }));
+    } else if (reconnectDeadline === null) {
+      tryReconnect(); // sent once "resumed" arrives
+    }
   });
 });
 
-function handleTimeoutLoss(result) {
-  // the server has already scored this as a loss — show it even if we
-  // were already on the guess screen
-  clearInterval(timerHandle);
-  roundEnded = true;
-  awaitingGuessResult = false;
-  finishRound(result, "Timed out");
+function verdictFor(result) {
+  if (result.outcome === "timeout") return "Timed out";
+  if (result.outcome === "abandoned") return "Left the game";
+  return result.correct ? "Correct guess" : "Wrong guess";
 }
 
-// `result` is what the server sent in "guess_result" / "you_timed_out":
-// {truth, correct, rank_before, rank, delta, event}. The rank fields are
-// only filled in for logged-in players, whose rank the server keeps.
-function finishRound(result, verdictLabel) {
+// `result` is what the server sent in "guess_result" / "you_timed_out" (or
+// a "resumed" snapshot): {outcome, truth, correct, weight, rank_before,
+// rank, delta, event}. The rank fields are only filled in for logged-in
+// players, whose rank the server keeps; guests apply `weight` locally.
+function finishRound(result) {
   if (roundResolved) return;
   roundResolved = true;
+  roundEnded = true;
+  awaitingGuessResult = false;
+  clearInterval(timerHandle);
+  stopReconnecting();
   roundTruth = result.truth;
   const correct = result.correct;
 
@@ -726,29 +887,28 @@ function finishRound(result, verdictLabel) {
     event = result.event;
     serverRank = rankAfter;
   } else if (isAuthenticated()) {
-    // the server didn't recognise our account (session expired, or the
-    // database was reset) — show a local estimate without saving it, then
-    // re-check the session, which drops back to guest mode if it's gone
+    // the server didn't recognise our account (session expired) — show a
+    // local estimate without saving it, then re-check the session, which
+    // drops back to guest mode if it's gone
     rankBefore = serverRank;
-    const local = applyMatchResult(rankBefore, correct);
+    const local = applyMatchResult(rankBefore, correct, result.weight);
     rankAfter = local.rank;
     delta = local.delta;
     event = local.event;
     initAuth();
   } else {
     rankBefore = loadRank();
-    const local = applyMatchResult(rankBefore, correct);
+    const local = applyMatchResult(rankBefore, correct, result.weight);
     rankAfter = local.rank;
     delta = local.delta;
     event = local.event;
     saveRank(rankAfter);
   }
 
-  showResult(verdictLabel, roundTruth, score, rankBefore, rankAfter, delta, event);
+  showResult(verdictFor(result), roundTruth, score, rankBefore, rankAfter, delta, event);
 }
 
-// Lost the connection before the server could score the guess, so there's
-// no answer to show and nothing counts.
+// Couldn't get back in touch with the server, so there's no answer to show.
 function showUnscoredResult() {
   if (roundResolved) return;
   roundResolved = true;

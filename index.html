@@ -44,7 +44,7 @@
       <p class="hero-sub">Chat with a random stranger for 2 minutes. Then guess: who were you talking to?</p>
       <button id="btn-play" class="btn-cli">Play</button>
     </div>
-    <p class="landing-note">This build connects to a backend (127.0.0.1:8000) — make sure it's running before you play. See README.</p>
+    <p class="landing-note">Chats are recorded to improve the game. The chat text is deleted after 90 days.</p>
   </section>
 
   <!-- modal: login / sign up -->
@@ -75,6 +75,8 @@
   <!-- screen: waiting for a match -->
   <section id="screen-waiting" class="screen">
     <p class="waiting-label">Finding a match<span class="dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></p>
+    <button id="btn-waiting-back" class="btn-text" type="button" hidden>Back</button>
+    <p class="waiting-note">Chats are recorded to improve the game. The chat text is deleted after 90 days.</p>
   </section>
 
   <!-- screen: chat -->
@@ -129,6 +131,8 @@
       </div>
     </div>
   </section>
+
+<p id="connection-banner" class="connection-banner" role="status" hidden></p>
 
 <canvas id="share-canvas" width="1080" height="1350" hidden></canvas>
 <script src="script.js"></script>
