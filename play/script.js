@@ -1,7 +1,7 @@
 // ============================================================
-// Falsona
-// To rename: edit GAME_NAME below, then also update the <title>
-// and the two "Falsona" wordmark elements in index.html.
+// Falsona — the game dashboard and the game itself (play/index.html).
+// To rename: edit GAME_NAME below, then also update the <title>s and
+// the "Falsona" wordmark elements in index.html and play/index.html.
 //
 // If you host the backend elsewhere (Railway, Render, etc.),
 // just update WS_URL — the rest of the code stays the same.
@@ -14,7 +14,7 @@ const API_URL = "https://api.falsona.com";
 
 // ---------- screen switching ----------
 const screens = {
-  landing: document.getElementById("screen-landing"),
+  dashboard: document.getElementById("screen-dashboard"),
   waiting: document.getElementById("screen-waiting"),
   chat: document.getElementById("screen-chat"),
   guess: document.getElementById("screen-guess"),
@@ -61,7 +61,8 @@ let gateToken = localStorage.getItem(GATE_TOKEN_KEY);
 
 function unlockGateUI() {
   document.getElementById("screen-gate").classList.remove("is-active");
-  document.getElementById("screen-landing").classList.add("is-active");
+  showDashboard();
+  initAuth(); // needs a valid gate token, so only once we have one
 }
 
 async function initGate() {
@@ -262,20 +263,64 @@ function applyMatchResult(rank, won, weight) {
   return { rank: after, delta, event };
 }
 
-function renderRankBadge() {
+function isMaxRank(rank) {
+  return rank.tier === TIERS.length - 1 && rank.division === DIVISION_LABELS.length - 1;
+}
+
+// The rank card on the dashboard home: big emblem, and the current tier's
+// five divisions as a bar between this tier's and the next tier's emblem.
+function renderRank() {
   const rank = currentRank();
-  const tier = TIERS[rank.tier];
   const threshold = RP_PER_DIVISION[rank.tier];
-  const isMax = rank.tier === TIERS.length - 1 && rank.division === DIVISION_LABELS.length - 1;
+  const max = isMaxRank(rank);
 
-  document.getElementById("rank-badge-name").textContent = rankLabel(rank.tier, rank.division);
-  document.getElementById("rank-badge-rp").textContent = isMax ? "MAX" : `${rank.rp}/${threshold} RP`;
+  document.getElementById("rank-emblem").innerHTML = rankEmblem(rank.tier, rank.division);
+  document.getElementById("rank-name").textContent = rankLabel(rank.tier, rank.division);
+  document.getElementById("rank-rp").textContent = max ? "MAX" : `${rank.rp} / ${threshold} RP`;
 
-  const badge = document.getElementById("rank-badge");
-  badge.style.setProperty("--rank-color", tier.color);
-  const fill = document.getElementById("rank-bar-fill");
-  fill.style.setProperty("--rank-color", tier.color);
-  fill.style.width = `${isMax ? 100 : Math.min(100, (rank.rp / threshold) * 100)}%`;
+  const segments = document.getElementById("rank-segments");
+  segments.style.setProperty("--rank-color", TIERS[rank.tier].color);
+  segments.innerHTML = DIVISION_LABELS.map((label, d) => {
+    let fill = 0;
+    if (max || d < rank.division) fill = 100;
+    else if (d === rank.division) fill = Math.min(100, (rank.rp / threshold) * 100);
+    return `<div class="rank-seg${d === rank.division ? " is-current" : ""}">` +
+      `<span class="rank-seg-label">${label}</span>` +
+      `<span class="rank-seg-bar"><span class="rank-seg-fill" style="width: ${fill}%"></span></span></div>`;
+  }).join("");
+
+  document.getElementById("rank-from").innerHTML = rankEmblem(rank.tier, 0);
+  document.getElementById("rank-to").innerHTML = rank.tier + 1 < TIERS.length
+    ? rankEmblem(rank.tier + 1, 0)
+    : '<span class="rank-max">MAX</span>';
+  document.getElementById("rank-guest-note").hidden = isAuthenticated();
+}
+
+// The Rank page: all 30 steps, top tier first, with the player's place marked.
+function renderLadder() {
+  const rank = currentRank();
+  document.getElementById("ladder-status").textContent = isAuthenticated()
+    ? `You're ${rankLabel(rank.tier, rank.division)}, ${rank.rp} RP into the division.`
+    : `You're ${rankLabel(rank.tier, rank.division)} as a guest (saved in this browser only). Log in to keep a global rank.`;
+
+  const ladder = document.getElementById("ladder");
+  ladder.innerHTML = "";
+  for (let t = TIERS.length - 1; t >= 0; t--) {
+    const item = document.createElement("li");
+    item.className = `ladder-tier${t < rank.tier ? " is-done" : ""}${t === rank.tier ? " is-current" : ""}`;
+    item.style.setProperty("--rank-color", TIERS[t].color);
+    const chips = DIVISION_LABELS.map((label, d) => {
+      const done = t < rank.tier || (t === rank.tier && d < rank.division);
+      const here = t === rank.tier && d === rank.division;
+      return `<li class="ladder-chip${done ? " is-done" : ""}${here ? " is-current" : ""}">${label}</li>`;
+    }).join("");
+    item.innerHTML =
+      `<span class="ladder-emblem">${rankEmblem(t, t === rank.tier ? rank.division : 0)}</span>` +
+      `<span class="ladder-name">${TIERS[t].name}</span>` +
+      `<ol class="ladder-chips" aria-label="Divisions">${chips}</ol>` +
+      `<span class="ladder-rp">${RP_PER_DIVISION[t]} RP per division</span>`;
+    ladder.appendChild(item);
+  }
 }
 
 function renderAuthStatus() {
@@ -283,7 +328,11 @@ function renderAuthStatus() {
   el.innerHTML = "";
   if (isAuthenticated()) {
     const label = document.createElement("span");
-    label.textContent = `Logged in as ${authUsername}`;
+    label.className = "auth-name";
+    const prefix = document.createElement("span");
+    prefix.className = "auth-prefix";
+    prefix.textContent = "Logged in as ";
+    label.append(prefix, authUsername);
     const logoutBtn = document.createElement("button");
     logoutBtn.type = "button";
     logoutBtn.className = "btn-text";
@@ -319,8 +368,7 @@ function logout() {
   serverRank = null;
   localStorage.removeItem("falsona_token");
   localStorage.removeItem("falsona_username");
-  renderAuthStatus();
-  renderRankBadge();
+  refreshDashboard();
 }
 
 async function initAuth() {
@@ -341,8 +389,7 @@ async function initAuth() {
   } catch {
     // network trouble says nothing about the session, so keep the token
   }
-  renderAuthStatus();
-  renderRankBadge();
+  refreshDashboard();
 }
 
 // ---------- auth modal ----------
@@ -399,23 +446,168 @@ document.getElementById("auth-form").addEventListener("submit", async (e) => {
     localStorage.setItem("falsona_token", authToken);
     localStorage.setItem("falsona_username", authUsername);
     closeAuthModal();
-    renderAuthStatus();
-    renderRankBadge();
+    refreshDashboard();
   } catch {
     errorEl.textContent = "Couldn't reach the server — is the backend running?";
     errorEl.hidden = false;
   }
 });
 
-// ---------- leaderboard modal ----------
-document.getElementById("btn-leaderboard").addEventListener("click", async () => {
-  const modal = document.getElementById("leaderboard-modal");
+// ---------- dashboard ----------
+// Pages are addressed by the URL hash (#home, #rank, ...), so the browser's
+// back button and links work. Sections that aren't built yet share one
+// "Coming soon" page.
+const DASH_PAGES = {
+  home: "Home",
+  profile: "Profile & Stats",
+  rank: "Rank",
+  customize: "Customize",
+  quests: "Quests",
+  shop: "Shop",
+  friends: "Friends",
+  chat: "Chat",
+  leaderboard: "Leaderboard",
+  settings: "Settings",
+};
+const BUILT_PAGES = {
+  home: () => { renderRank(); loadRecentGames(); },
+  rank: renderLadder,
+  leaderboard: loadLeaderboard,
+};
+let currentPage = "home";
+
+function route() {
+  const requested = location.hash.slice(1);
+  currentPage = Object.hasOwn(DASH_PAGES, requested) ? requested : "home";
+  const built = Object.hasOwn(BUILT_PAGES, currentPage);
+  document.querySelectorAll(".dash-page").forEach((el) => { el.hidden = true; });
+  document.getElementById(built ? `page-${currentPage}` : "page-soon").hidden = false;
+  if (!built) document.getElementById("soon-title").textContent = DASH_PAGES[currentPage];
+  document.querySelectorAll(".dash-link").forEach((link) => {
+    if (link.dataset.page === currentPage) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  });
+  if (built) BUILT_PAGES[currentPage]();
+  setMenuOpen(false);
+}
+
+function showDashboard() {
+  showScreen("dashboard");
+  renderAuthStatus();
+  route();
+}
+
+// Everything on the dashboard that depends on who's logged in.
+function refreshDashboard() {
+  renderAuthStatus();
+  renderRank();
+  if (currentPage === "home") loadRecentGames();
+  if (currentPage === "rank") renderLadder();
+}
+
+window.addEventListener("hashchange", route);
+
+// ---------- mobile menu ----------
+const sidebar = document.getElementById("dash-sidebar");
+const menuToggle = document.getElementById("menu-toggle");
+const menuBackdrop = document.getElementById("dash-backdrop");
+
+function setMenuOpen(open) {
+  sidebar.classList.toggle("is-open", open);
+  menuBackdrop.hidden = !open;
+  menuToggle.setAttribute("aria-expanded", String(open));
+}
+menuToggle.addEventListener("click", () => setMenuOpen(!sidebar.classList.contains("is-open")));
+menuBackdrop.addEventListener("click", () => setMenuOpen(false));
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") setMenuOpen(false);
+});
+
+// ---------- recent games (logged-in players) ----------
+function timeAgo(iso) {
+  const seconds = (Date.now() - Date.parse(iso)) / 1000;
+  if (seconds < 60) return "just now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} h ago`;
+  return `${Math.floor(seconds / 86400)} d ago`;
+}
+
+function recentVerdict(round) {
+  if (round.outcome === "timeout") return "Timed out";
+  if (round.outcome === "abandoned") return "Left";
+  return round.correct ? "Correct" : "Wrong";
+}
+
+function showRecentMessage(box, text, withLogin) {
+  box.innerHTML = "";
+  const p = document.createElement("p");
+  p.className = "recent-empty";
+  if (withLogin) {
+    const login = document.createElement("button");
+    login.type = "button";
+    login.className = "btn-text btn-text--inline";
+    login.textContent = "Log in";
+    login.addEventListener("click", () => openAuthModal("login"));
+    p.append(login, " to see your recent games.");
+  } else {
+    p.textContent = text;
+  }
+  box.appendChild(p);
+}
+
+async function loadRecentGames() {
+  const box = document.getElementById("recent-games");
+  if (!authToken) {
+    showRecentMessage(box, "", true);
+    return;
+  }
+  showRecentMessage(box, "Loading…");
+  try {
+    const res = await fetch(
+      `${API_URL}/api/me/rounds?token=${encodeURIComponent(authToken)}&gate_token=${encodeURIComponent(gateToken || "")}&limit=5`,
+    );
+    if (res.status === 401) {
+      showRecentMessage(box, "", true);
+      return;
+    }
+    if (!res.ok) throw new Error("bad response");
+    const { rounds } = await res.json();
+    if (!rounds.length) {
+      showRecentMessage(box, "No games yet. Press Play!");
+      return;
+    }
+    box.innerHTML = "";
+    rounds.forEach((round) => {
+      const row = document.createElement("div");
+      row.className = "recent-row";
+      const cells = [
+        ["recent-verdict " + (round.correct ? "is-win" : "is-loss"), recentVerdict(round)],
+        ["recent-partner", `vs ${round.truth === "human" ? "Human" : "Bot"}`],
+        ["recent-rp " + (round.delta > 0 ? "is-win" : "is-loss"),
+          round.delta === null ? "–" : `${round.delta > 0 ? "+" : ""}${round.delta} RP`],
+        ["recent-when", timeAgo(round.created_at)],
+      ];
+      cells.forEach(([className, text]) => {
+        const cell = document.createElement("span");
+        cell.className = className;
+        cell.textContent = text;
+        row.appendChild(cell);
+      });
+      box.appendChild(row);
+    });
+  } catch {
+    showRecentMessage(box, "Couldn't load your recent games.");
+  }
+}
+
+// ---------- leaderboard page ----------
+async function loadLeaderboard() {
   const list = document.getElementById("leaderboard-list");
   list.innerHTML = "";
   const loadingItem = document.createElement("li");
+  loadingItem.className = "leaderboard-note";
   loadingItem.textContent = "Loading…";
   list.appendChild(loadingItem);
-  modal.hidden = false;
 
   try {
     const res = await withWakeNotice(
@@ -427,29 +619,43 @@ document.getElementById("btn-leaderboard").addEventListener("click", async () =>
     list.innerHTML = "";
     if (!data.players.length) {
       const li = document.createElement("li");
-      li.textContent = "No ranked players yet — be the first!";
+      li.className = "leaderboard-note";
+      li.textContent = "No ranked players yet. Be the first!";
       list.appendChild(li);
-    } else {
-      data.players.forEach((p) => {
-        const li = document.createElement("li");
-        li.textContent = `${p.username} — ${rankLabel(p.tier, p.division)} (${p.rp} RP)`;
-        list.appendChild(li);
-      });
+      return;
     }
+    data.players.forEach((player, i) => {
+      const li = document.createElement("li");
+      li.className = "leaderboard-row";
+      if (isAuthenticated() && player.username.toLowerCase() === authUsername.toLowerCase()) {
+        li.classList.add("is-me");
+      }
+      const position = document.createElement("span");
+      position.className = "lb-pos";
+      position.textContent = i + 1;
+      const emblem = document.createElement("span");
+      emblem.className = "lb-emblem";
+      emblem.innerHTML = rankEmblem(player.tier, player.division);
+      const name = document.createElement("span");
+      name.className = "lb-name";
+      name.textContent = player.username; // user-chosen text: never innerHTML
+      const rankName = document.createElement("span");
+      rankName.className = "lb-rank";
+      rankName.textContent = rankLabel(player.tier, player.division);
+      const rp = document.createElement("span");
+      rp.className = "lb-rp";
+      rp.textContent = `${player.rp} RP`;
+      li.append(position, emblem, name, rankName, rp);
+      list.appendChild(li);
+    });
   } catch {
     list.innerHTML = "";
     const li = document.createElement("li");
+    li.className = "leaderboard-note";
     li.textContent = "Couldn't reach the server.";
     list.appendChild(li);
   }
-});
-document.getElementById("leaderboard-modal-close").addEventListener("click", () => {
-  document.getElementById("leaderboard-modal").hidden = true;
-});
-
-renderRankBadge();  // paint a guest/local rank immediately for a fast first render
-renderAuthStatus();
-initAuth();         // then upgrade to the account's global rank if a valid token is stored
+}
 
 function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -816,8 +1022,9 @@ document.getElementById("btn-waiting-back").addEventListener("click", () => {
     socket = null;
     old.close();
   }
-  showScreen("landing");
+  showDashboard();
 });
+document.getElementById("btn-dashboard").addEventListener("click", showDashboard);
 
 // ---------- guess & score ----------
 function loadScore() {
@@ -979,7 +1186,7 @@ function showResult(verdictLabel, truth, score, rankBefore, rankAfter, rankDelta
   }
 
   renderTranscriptInto(resultChatLog);
-  renderRankBadge(); // keep the landing badge in sync for next time
+  renderRank(); // keep the dashboard in sync for when the player goes back
   showScreen("result");
 }
 
