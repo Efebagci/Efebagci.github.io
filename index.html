@@ -7,20 +7,88 @@
 <meta name="description" content="Chat for 2 minutes, then guess: was your partner human or AI?">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="page-intro">
 
-  <!-- intro page: what Falsona is. The game itself lives in play/ -->
-  <section id="screen-landing" class="screen is-active">
-    <header class="wordmark">Falsona</header>
-    <div class="landing-content">
-      <h1 class="hero-title">Human or<br>AI?</h1>
-      <p class="hero-sub">Chat with a random stranger for 2 minutes. Then guess: who were you talking to?</p>
-      <a href="play/" class="btn-cli">Play</a>
+  <header class="intro-nav">
+    <span class="wordmark">Falsona<span class="wordmark-cursor" aria-hidden="true">_</span></span>
+    <a class="intro-nav-link" href="play/">Play <span aria-hidden="true">→</span></a>
+  </header>
+
+  <main>
+    <section class="intro-hero">
+      <div class="intro-hero-text">
+        <p class="kicker">// a social turing test</p>
+        <h1 class="hero-title">Human<br>or <em>AI?</em></h1>
+        <p class="hero-sub">Chat with a stranger for two minutes. Then make the call: were you talking to a person, or a machine pretending to be one?</p>
+        <div class="hero-cta">
+          <a href="play/" class="btn-cli btn-cli--solid">Play now</a>
+          <span class="hero-cta-note">free · no sign-up needed</span>
+        </div>
+      </div>
+
+      <!-- a looping, scripted example round (decorative) -->
+      <div class="demo" aria-hidden="true">
+        <div class="demo-card">
+          <div class="demo-top">
+            <span class="demo-timer" id="demo-timer">01:52</span>
+            <span class="demo-who">stranger #<span id="demo-id">4821</span></span>
+          </div>
+          <div class="demo-log" id="demo-log"></div>
+          <div class="demo-typing" id="demo-typing" hidden><span></span><span></span><span></span></div>
+        </div>
+        <p class="demo-stamp" id="demo-stamp" hidden></p>
+      </div>
+    </section>
+
+    <div class="ticker" aria-hidden="true">
+      <div class="ticker-track">
+        <span>are you a bot?</span><span>lol no</span><span>what's 17 × 23</span><span>idk, calculator's in the other room</span><span>say something only a human would say</span><span>my cat just knocked over my tea</span><span>suspicious</span><span>ok that was very human of you</span>
+        <span>are you a bot?</span><span>lol no</span><span>what's 17 × 23</span><span>idk, calculator's in the other room</span><span>say something only a human would say</span><span>my cat just knocked over my tea</span><span>suspicious</span><span>ok that was very human of you</span>
+      </div>
     </div>
-  </section>
 
+    <section class="intro-steps" aria-labelledby="steps-heading">
+      <h2 id="steps-heading" class="section-heading"><span class="prompt">&gt;</span> how it works</h2>
+      <ol class="steps">
+        <li class="step">
+          <span class="step-num">01</span>
+          <h3 class="step-title">Chat for two minutes</h3>
+          <p>You're matched with someone at random. Take turns, one message each, 25 seconds to answer.</p>
+        </li>
+        <li class="step">
+          <span class="step-num">02</span>
+          <h3 class="step-title">Make the call</h3>
+          <p>Human or bot? Our bots have names, moods, typos and bad days. Some humans type like robots.</p>
+        </li>
+        <li class="step">
+          <span class="step-num">03</span>
+          <h3 class="step-title">Climb the ranks</h3>
+          <p>Every right call earns RP. Spotting a human is worth the most, so guessing blindly won't get you far.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="intro-ranks" aria-labelledby="ranks-heading">
+      <h2 id="ranks-heading" class="section-heading"><span class="prompt">&gt;</span> from wood to diamond</h2>
+      <p class="intro-ranks-sub">Six tiers, five divisions each. How far can your instincts take you?</p>
+      <div class="intro-emblems" id="intro-emblems"></div>
+    </section>
+
+    <section class="intro-final">
+      <h2 class="intro-final-title">Think you can <em>tell?</em></h2>
+      <a href="play/" class="btn-cli btn-cli--solid">Find out</a>
+    </section>
+  </main>
+
+  <footer class="intro-footer">
+    <span class="wordmark wordmark--small">Falsona</span>
+    <span>Human or AI? A two-minute game of instincts.</span>
+  </footer>
+
+<script src="play/badges.js"></script>
+<script src="intro.js"></script>
 </body>
 </html>
