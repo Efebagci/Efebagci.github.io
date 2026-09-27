@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Play — Falsona</title>
+<meta name="description" content="Chat for 2 minutes, then guess: was your partner human or AI?">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+
+  <!-- screen: temporary development password gate (unrelated to account login) -->
+  <section id="screen-gate" class="screen is-active">
+    <div class="gate-content">
+      <header class="wordmark">Falsona</header>
+      <h1 class="gate-title">Falsona is currently in development.</h1>
+      <p class="gate-sub">Enter the access password to continue.</p>
+      <form id="gate-form">
+        <input id="gate-password" type="password" placeholder="password" autocomplete="off" required>
+        <p id="gate-error" class="auth-error" hidden>Incorrect password.</p>
+        <button type="submit" class="btn-cli">Enter</button>
+      </form>
+      <p id="gate-status" class="status-note" hidden></p>
+    </div>
+  </section>
+
+  <!-- screen: game dashboard -->
+  <section id="screen-dashboard" class="screen">
+    <header class="dash-topbar">
+      <div class="dash-brand">
+        <button id="menu-toggle" class="icon-btn" type="button" aria-label="Menu" aria-expanded="false" aria-controls="dash-sidebar">
+          <svg viewBox="0 0 24 24" class="icon"><path d="M4 7 H20 M4 12 H20 M4 17 H20"/></svg>
+        </button>
+        <span class="wordmark">Falsona</span>
+      </div>
+      <div id="auth-status" class="auth-status"></div>
+    </header>
+
+    <nav id="dash-sidebar" class="dash-sidebar" aria-label="Dashboard">
+      <p class="dash-menu-title">Menu</p>
+      <a class="dash-link" href="#home" data-page="home">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M3 11 L12 4 L21 11 M5.5 9.5 V20 H18.5 V9.5 M10 20 V14.5 H14 V20"/></svg><span>Home</span>
+      </a>
+      <a class="dash-link" href="#profile" data-page="profile">
+        <svg viewBox="0 0 24 24" class="icon"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20 C4.5 15.8 8 13.8 12 13.8 C16 13.8 19.5 15.8 19.5 20"/></svg><span>Profile &amp; Stats</span>
+      </a>
+      <a class="dash-link" href="#rank" data-page="rank">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M5 19 L12 14.5 L19 19 M5 13.5 L12 9 L19 13.5 M8.5 6 L12 3.5 L15.5 6"/></svg><span>Rank</span>
+      </a>
+      <a class="dash-link" href="#customize" data-page="customize">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M12 3.5 C7 3.5 3.5 7.2 3.5 12 C3.5 16.6 7 20.5 11.2 20.5 C12.6 20.5 13.2 19.6 13.2 18.6 C13.2 17.4 14.1 16.5 15.3 16.5 H17 C19.1 16.5 20.5 14.8 20.5 12.5 C20.5 7.4 16.8 3.5 12 3.5 Z"/><circle cx="7.8" cy="11.5" r="1"/><circle cx="10.2" cy="7.6" r="1"/><circle cx="14.6" cy="7.6" r="1"/><circle cx="17" cy="11.3" r="1"/></svg><span>Customize</span>
+      </a>
+      <a class="dash-link" href="#quests" data-page="quests">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M10 6.5 H20 M10 12 H20 M10 17.5 H20 M4 6.5 L5.3 7.8 L7.5 5.2 M4 12 L5.3 13.3 L7.5 10.7 M4 17.5 L5.3 18.8 L7.5 16.2"/></svg><span>Quests</span>
+      </a>
+      <a class="dash-link" href="#shop" data-page="shop">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M4 9 L5.5 4 H18.5 L20 9 Z M4 9 C4 11 7 11.5 8 9.5 C9 11.5 11.5 11.5 12 9.5 C12.5 11.5 15 11.5 16 9.5 C17 11.5 20 11 20 9 M5.5 11.5 V20 H18.5 V11.5 M10 20 V15 H14 V20"/></svg><span>Shop</span>
+      </a>
+      <a class="dash-link" href="#friends" data-page="friends">
+        <svg viewBox="0 0 24 24" class="icon"><circle cx="9" cy="8.5" r="3.2"/><path d="M3 19.5 C3 15.9 5.8 14.3 9 14.3 C12.2 14.3 15 15.9 15 19.5"/><circle cx="17" cy="9.5" r="2.5"/><path d="M16.5 14.3 C19.2 14.3 21 15.8 21 18.6"/></svg><span>Friends</span>
+      </a>
+      <a class="dash-link" href="#chat" data-page="chat">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M4 5 H20 V16 H10.5 L6.5 19.8 V16 H4 Z M8 9.5 H16 M8 12.5 H13"/></svg><span>Chat</span>
+      </a>
+      <a class="dash-link" href="#leaderboard" data-page="leaderboard">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M3 20 H21 M3.5 20 V13.5 H8.5 V20 M9.5 20 V8.5 H14.5 V20 M15.5 20 V11.5 H20.5 V20 M12 3.5 V5.8"/></svg><span>Leaderboard</span>
+      </a>
+      <a class="dash-link" href="#settings" data-page="settings">
+        <svg viewBox="0 0 24 24" class="icon"><circle cx="12" cy="12" r="3"/><path d="M12 2.8 V5.3 M12 18.7 V21.2 M2.8 12 H5.3 M18.7 12 H21.2 M5.5 5.5 L7.3 7.3 M16.7 16.7 L18.5 18.5 M5.5 18.5 L7.3 16.7 M16.7 7.3 L18.5 5.5"/><circle cx="12" cy="12" r="6.7"/></svg><span>Settings</span>
+      </a>
+      <a class="dash-back" href="../">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M15 5.5 L8.5 12 L15 18.5"/></svg><span>Back to intro</span>
+      </a>
+    </nav>
+    <div id="dash-backdrop" class="dash-backdrop" hidden></div>
+
+    <main class="dash-main">
+      <!-- page: home -->
+      <section id="page-home" class="dash-page" aria-labelledby="home-heading">
+        <h1 id="home-heading" class="visually-hidden">Home</h1>
+        <div class="play-panel">
+          <div class="play-box">
+            <button id="btn-play" class="btn-cli btn-cli--big" type="button">Play</button>
+          </div>
+          <label class="mode-picker">
+            <span class="mode-label">Mode</span>
+            <select id="mode-select">
+              <option value="classic">Classic</option>
+            </select>
+          </label>
+        </div>
+        <p class="dash-note">Chats are recorded to improve the game. The chat text is deleted after 90 days.</p>
+
+        <div class="rank-card">
+          <div class="rank-card-emblem" id="rank-emblem"></div>
+          <div class="rank-card-body">
+            <div class="rank-card-head">
+              <span id="rank-name" class="rank-name">Wood I</span>
+              <span id="rank-rp" class="rank-rp">0 / 20 RP</span>
+            </div>
+            <div class="rank-track">
+              <div class="rank-end" id="rank-from"></div>
+              <div class="rank-segments" id="rank-segments"></div>
+              <div class="rank-end" id="rank-to"></div>
+            </div>
+            <p id="rank-guest-note" class="rank-guest-note" hidden>Guest rank, saved in this browser only. Log in to keep a global rank.</p>
+          </div>
+        </div>
+
+        <section class="recent" aria-labelledby="recent-heading">
+          <h2 id="recent-heading" class="dash-heading">Recent games</h2>
+          <div id="recent-games" class="recent-list"></div>
+          <p class="recent-more">More in <a href="#profile">Profile &amp; Stats</a>.</p>
+        </section>
+      </section>
+
+      <!-- page: rank ladder -->
+      <section id="page-rank" class="dash-page" hidden>
+        <h1 class="dash-title">Rank</h1>
+        <p id="ladder-status" class="dash-lead"></p>
+        <ol id="ladder" class="ladder"></ol>
+        <div class="dash-prose">
+          <h2 class="dash-heading">How RP works</h2>
+          <p>A correct guess earns RP. A wrong guess, running out of time, or leaving a round loses it.</p>
+          <p>Each division takes more RP to fill the higher you climb, and a correct guess is worth a little less while a wrong one costs a little more.</p>
+          <p>Every round is also weighted by how rare its answer is at the moment. While most partners are bots, catching a human is worth a lot and confirming a bot only a little, so always guessing the same thing never pays off. Only reading the conversation does.</p>
+        </div>
+      </section>
+
+      <!-- page: leaderboard -->
+      <section id="page-leaderboard" class="dash-page" hidden>
+        <h1 class="dash-title">Leaderboard</h1>
+        <p class="dash-lead">Top players by global rank.</p>
+        <ol id="leaderboard-list" class="leaderboard"></ol>
+      </section>
+
+      <!-- page: sections that aren't built yet -->
+      <section id="page-soon" class="dash-page" hidden>
+        <h1 id="soon-title" class="dash-title"></h1>
+        <p class="dash-lead">Coming soon.</p>
+      </section>
+    </main>
+  </section>
+
+  <!-- modal: login / sign up -->
+  <div id="auth-modal" class="modal-overlay" hidden>
+    <div class="modal">
+      <button id="auth-modal-close" class="modal-close" type="button" aria-label="Close">×</button>
+      <h2 id="auth-modal-title" class="modal-title">Log in</h2>
+      <form id="auth-form">
+        <input id="auth-username" type="text" placeholder="username" autocomplete="username" required minlength="3" maxlength="20" pattern="[A-Za-z0-9_-]+" title="Letters, numbers, - and _ only">
+        <input id="auth-password" type="password" placeholder="password" autocomplete="current-password" required minlength="6" maxlength="100">
+        <p id="auth-error" class="auth-error" hidden></p>
+        <button type="submit" class="btn-cli">Log in</button>
+      </form>
+      <p id="auth-status-note" class="status-note" hidden></p>
+      <button id="auth-modal-switch" class="btn-text" type="button">Need an account? Sign up</button>
+    </div>
+  </div>
+
+  <!-- screen: waiting for a match -->
+  <section id="screen-waiting" class="screen">
+    <p class="waiting-label">Finding a match<span class="dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></p>
+    <button id="btn-waiting-back" class="btn-text" type="button" hidden>Back</button>
+    <p class="waiting-note">Chats are recorded to improve the game. The chat text is deleted after 90 days.</p>
+  </section>
+
+  <!-- screen: chat -->
+  <section id="screen-chat" class="screen">
+    <div class="chat-topbar">
+      <span id="timer" class="timer">02:00</span>
+      <span class="wordmark wordmark--small">Falsona</span>
+    </div>
+    <div id="chat-log" class="chat-log" aria-live="polite"></div>
+    <p id="typing-indicator" class="typing-indicator" hidden>
+      <span>partner is typing</span><span class="dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>
+    </p>
+    <div class="turn-timeout" id="turn-timeout" hidden>
+      <div class="turn-timeout-fill" id="turn-timeout-fill"></div>
+    </div>
+    <form id="chat-form" class="chat-form">
+      <input id="chat-input" type="text" placeholder="waiting for partner…" autocomplete="off" maxlength="200" aria-label="Your message" disabled>
+      <button type="submit" class="btn-send" disabled>Send</button>
+    </form>
+    <button id="btn-early-guess" class="btn-text">Guess now</button>
+  </section>
+
+  <!-- screen: guess -->
+  <section id="screen-guess" class="screen">
+    <div id="guess-chat-log" class="chat-log" aria-live="off"></div>
+    <h2 class="guess-title">Time's up. Who do you think you were talking to?</h2>
+    <div class="guess-buttons">
+      <button class="btn-guess btn-guess--human" data-guess="human">Human</button>
+      <button class="btn-guess btn-guess--bot" data-guess="bot">Bot</button>
+    </div>
+  </section>
+
+  <!-- screen: result -->
+  <section id="screen-result" class="screen">
+    <div id="result-chat-log" class="chat-log" aria-live="off"></div>
+    <div class="result-bottom">
+      <div class="ticket" id="ticket">
+        <p class="ticket-verdict" id="result-verdict">Correct guess</p>
+        <div class="ticket-perf" aria-hidden="true"></div>
+        <p class="ticket-detail" id="result-detail">Your partner was a bot.</p>
+        <p class="ticket-partner-guess" id="result-partner-guess" hidden></p>
+        <p class="ticket-quote" id="result-quote">"…"</p>
+        <div class="ticket-perf" aria-hidden="true"></div>
+        <p class="ticket-score" id="result-score">Your score on this browser: 0/0</p>
+        <p class="ticket-rank" id="result-rank">Wood I · +0 RP</p>
+        <p class="ticket-rank-event" id="result-rank-event" hidden></p>
+        <p class="ticket-brand">Falsona</p>
+      </div>
+      <div class="result-actions">
+        <button id="btn-share" class="btn-cli">Share card</button>
+        <button id="btn-again" class="btn-cli">Play again</button>
+      </div>
+      <button id="btn-dashboard" class="btn-text" type="button">Back to dashboard</button>
+    </div>
+  </section>
+
+<p id="connection-banner" class="connection-banner" role="status" hidden></p>
+
+<canvas id="share-canvas" width="1080" height="1350" hidden></canvas>
+<script src="badges.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

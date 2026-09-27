@@ -16,9 +16,9 @@ Bu dosyaya asla gizli bilgi (API anahtarı, şifre) yazma.
 - Backend: Efebagci/Falsona → Render (free tier)
 Her session tek repoyu görür. Şunlardan birini değiştirirsen diğer repoda da yapılması gerekeni bana açıkça söyle:
 - WebSocket mesaj protokolü ve HTTP uç noktaları
-- Rank formülü (script.js ↔ rank.py, elle senkron tutuluyor)
+- Rank formülü (play/script.js ↔ rank.py, elle senkron tutuluyor)
 - TURN_TIMEOUT_SECONDS / ROUND_SECONDS
-- Backend adresi (script.js'teki WS_URL / API_URL)
+- Backend adresi (play/script.js'teki WS_URL / API_URL)
 
 ## Ortam ve hosting
 - ANTHROPIC_API_KEY ve GATE_PASSWORD Render panelinde tanımlı. Asla koda, commit'e veya dosyaya yazma. .env ve falsona.db repoda yok, olmamalı.
