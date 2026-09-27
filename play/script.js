@@ -278,8 +278,8 @@ function renderRank() {
   document.getElementById("rank-name").textContent = rankLabel(rank.tier, rank.division);
   document.getElementById("rank-rp").textContent = max ? "MAX" : `${rank.rp} / ${threshold} RP`;
 
+  document.getElementById("rank-card").style.setProperty("--rank-color", TIERS[rank.tier].color);
   const segments = document.getElementById("rank-segments");
-  segments.style.setProperty("--rank-color", TIERS[rank.tier].color);
   segments.innerHTML = DIVISION_LABELS.map((label, d) => {
     let fill = 0;
     if (max || d < rank.division) fill = 100;
@@ -324,6 +324,7 @@ function renderLadder() {
 }
 
 function renderAuthStatus() {
+  document.getElementById("greeting-name").textContent = isAuthenticated() ? authUsername : "stranger";
   const el = document.getElementById("auth-status");
   el.innerHTML = "";
   if (isAuthenticated()) {
@@ -482,7 +483,12 @@ function route() {
   const built = Object.hasOwn(BUILT_PAGES, currentPage);
   document.querySelectorAll(".dash-page").forEach((el) => { el.hidden = true; });
   document.getElementById(built ? `page-${currentPage}` : "page-soon").hidden = false;
-  if (!built) document.getElementById("soon-title").textContent = DASH_PAGES[currentPage];
+  if (!built) {
+    document.getElementById("soon-title").textContent = DASH_PAGES[currentPage];
+    const icon = document.getElementById("soon-icon");
+    icon.innerHTML = "";
+    icon.appendChild(document.querySelector(`.dash-link[data-page="${currentPage}"] svg`).cloneNode(true));
+  }
   document.querySelectorAll(".dash-link").forEach((link) => {
     if (link.dataset.page === currentPage) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
@@ -581,7 +587,7 @@ async function loadRecentGames() {
       const row = document.createElement("div");
       row.className = "recent-row";
       const cells = [
-        ["recent-verdict " + (round.correct ? "is-win" : "is-loss"), recentVerdict(round)],
+        [`recent-verdict is-${round.correct ? "win" : "loss"} is-${round.outcome}`, recentVerdict(round)],
         ["recent-partner", `vs ${round.truth === "human" ? "Human" : "Bot"}`],
         ["recent-rp " + (round.delta > 0 ? "is-win" : "is-loss"),
           round.delta === null ? "–" : `${round.delta > 0 ? "+" : ""}${round.delta} RP`],
@@ -627,6 +633,7 @@ async function loadLeaderboard() {
     data.players.forEach((player, i) => {
       const li = document.createElement("li");
       li.className = "leaderboard-row";
+      if (i < 3) li.classList.add(`is-top${i + 1}`);
       if (isAuthenticated() && player.username.toLowerCase() === authUsername.toLowerCase()) {
         li.classList.add("is-me");
       }
@@ -931,9 +938,28 @@ function startRound() {
   updateGuessNowButton();
   showScreen("waiting");
   resetWaitingLabel();
+  showNextTip();
   document.getElementById("btn-waiting-back").hidden = true;
   connectSocket();
 }
+
+// Something to read while the search runs (10-25 seconds).
+const WAITING_TIPS = [
+  "Tip: ask about something happening where they are right now.",
+  "Tip: bots make typos too. So do humans.",
+  "Tip: humans also take a while to answer sometimes.",
+  "Tip: spotting a human is worth more RP than confirming a bot.",
+  "Tip: \"Guess now\" unlocks after 3 messages each.",
+  "Tip: a weirdly perfect answer is a clue. So is a weirdly bad one.",
+];
+let tipIndex = Math.floor(Math.random() * WAITING_TIPS.length);
+function showNextTip() {
+  tipIndex = (tipIndex + 1) % WAITING_TIPS.length;
+  document.getElementById("waiting-tip").textContent = WAITING_TIPS[tipIndex];
+}
+setInterval(() => {
+  if (screens.waiting.classList.contains("is-active")) showNextTip();
+}, 5000);
 
 function resetWaitingLabel() {
   document.querySelector(".waiting-label").innerHTML =

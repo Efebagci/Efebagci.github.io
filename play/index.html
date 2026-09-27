@@ -7,7 +7,7 @@
 <meta name="description" content="Chat for 2 minutes, then guess: was your partner human or AI?">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -34,7 +34,7 @@
         <button id="menu-toggle" class="icon-btn" type="button" aria-label="Menu" aria-expanded="false" aria-controls="dash-sidebar">
           <svg viewBox="0 0 24 24" class="icon"><path d="M4 7 H20 M4 12 H20 M4 17 H20"/></svg>
         </button>
-        <span class="wordmark">Falsona</span>
+        <span class="wordmark">Falsona<span class="wordmark-cursor" aria-hidden="true">_</span></span>
       </div>
       <div id="auth-status" class="auth-status"></div>
     </header>
@@ -80,10 +80,12 @@
     <main class="dash-main">
       <!-- page: home -->
       <section id="page-home" class="dash-page" aria-labelledby="home-heading">
-        <h1 id="home-heading" class="visually-hidden">Home</h1>
+        <h1 id="home-heading" class="dash-greeting">Hey, <em id="greeting-name">stranger</em>.</h1>
         <div class="play-panel">
-          <div class="play-box">
-            <button id="btn-play" class="btn-cli btn-cli--big" type="button">Play</button>
+          <div class="play-box dot-grid">
+            <p class="play-kicker">// a stranger is waiting</p>
+            <button id="btn-play" class="btn-cli btn-cli--big btn-cli--solid" type="button">Play</button>
+            <p class="play-meta"><span>2 min</span><span>1 stranger</span><span>1 guess</span></p>
           </div>
           <label class="mode-picker">
             <span class="mode-label">Mode</span>
@@ -94,7 +96,7 @@
         </div>
         <p class="dash-note">Chats are recorded to improve the game. The chat text is deleted after 90 days.</p>
 
-        <div class="rank-card">
+        <div class="rank-card" id="rank-card">
           <div class="rank-card-emblem" id="rank-emblem"></div>
           <div class="rank-card-body">
             <div class="rank-card-head">
@@ -139,8 +141,12 @@
 
       <!-- page: sections that aren't built yet -->
       <section id="page-soon" class="dash-page" hidden>
-        <h1 id="soon-title" class="dash-title"></h1>
-        <p class="dash-lead">Coming soon.</p>
+        <div class="soon">
+          <div class="soon-icon" id="soon-icon" aria-hidden="true"></div>
+          <h1 id="soon-title" class="dash-title"></h1>
+          <p class="soon-text">Coming soon. We're building this one right now.</p>
+          <div class="tape" aria-hidden="true"><span>under construction ✦ under construction ✦ under construction ✦ under construction ✦ under construction ✦ under construction ✦</span></div>
+        </div>
       </section>
     </main>
   </section>
@@ -163,7 +169,9 @@
 
   <!-- screen: waiting for a match -->
   <section id="screen-waiting" class="screen">
+    <div class="radar" aria-hidden="true"><span></span><span></span><span></span><i></i></div>
     <p class="waiting-label">Finding a match<span class="dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></p>
+    <p class="waiting-tip" id="waiting-tip"></p>
     <button id="btn-waiting-back" class="btn-text" type="button" hidden>Back</button>
     <p class="waiting-note">Chats are recorded to improve the game. The chat text is deleted after 90 days.</p>
   </section>
