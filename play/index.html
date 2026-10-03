@@ -178,55 +178,91 @@
 
   <!-- screen: chat -->
   <section id="screen-chat" class="screen">
-    <div class="chat-topbar">
-      <span id="timer" class="timer">02:00</span>
-      <span class="wordmark wordmark--small">Falsona</span>
+    <div class="chat-shell">
+      <div class="chat-topbar">
+        <div class="chat-who">
+          <span class="chat-avatar" aria-hidden="true">?</span>
+          <span class="chat-id">
+            <span class="chat-name">stranger #<span id="stranger-id">0000</span></span>
+            <span class="chat-status">human or AI?</span>
+          </span>
+        </div>
+        <span id="timer" class="timer">02:00</span>
+      </div>
+      <div id="chat-log" class="chat-log" aria-live="polite"></div>
+      <div id="typing-indicator" class="typing-indicator" hidden>
+        <span class="typing-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="typing-label">stranger is typing</span>
+      </div>
+      <div class="turn-timeout" id="turn-timeout" hidden>
+        <div class="turn-timeout-fill" id="turn-timeout-fill"></div>
+      </div>
+      <form id="chat-form" class="chat-form">
+        <label class="chat-input-wrap">
+          <span class="chat-prompt" aria-hidden="true">&gt;</span>
+          <input id="chat-input" type="text" placeholder="waiting for partner…" autocomplete="off" maxlength="200" aria-label="Your message" disabled>
+        </label>
+        <button type="submit" class="btn-send" disabled>Send</button>
+      </form>
+      <button id="btn-early-guess" class="btn-guess-now" type="button">Guess now</button>
     </div>
-    <div id="chat-log" class="chat-log" aria-live="polite"></div>
-    <p id="typing-indicator" class="typing-indicator" hidden>
-      <span>partner is typing</span><span class="dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>
-    </p>
-    <div class="turn-timeout" id="turn-timeout" hidden>
-      <div class="turn-timeout-fill" id="turn-timeout-fill"></div>
-    </div>
-    <form id="chat-form" class="chat-form">
-      <input id="chat-input" type="text" placeholder="waiting for partner…" autocomplete="off" maxlength="200" aria-label="Your message" disabled>
-      <button type="submit" class="btn-send" disabled>Send</button>
-    </form>
-    <button id="btn-early-guess" class="btn-text">Guess now</button>
   </section>
 
   <!-- screen: guess -->
   <section id="screen-guess" class="screen">
-    <div id="guess-chat-log" class="chat-log" aria-live="off"></div>
-    <h2 class="guess-title">Time's up. Who do you think you were talking to?</h2>
-    <div class="guess-buttons">
-      <button class="btn-guess btn-guess--human" data-guess="human">Human</button>
-      <button class="btn-guess btn-guess--bot" data-guess="bot">Bot</button>
+    <div class="guess-shell">
+      <div class="transcript-card">
+        <p class="transcript-label">// the conversation</p>
+        <div id="guess-chat-log" class="chat-log" aria-live="off"></div>
+      </div>
+      <h2 class="guess-title">Who was <em>it?</em></h2>
+      <p class="guess-sub">Trust your gut. You only get one guess.</p>
+      <div class="guess-buttons">
+        <button class="btn-guess btn-guess--human" data-guess="human">
+          <svg viewBox="0 0 24 24" class="icon guess-icon" aria-hidden="true"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20 C4.5 15.8 8 13.8 12 13.8 C16 13.8 19.5 15.8 19.5 20"/></svg><span class="guess-label">Human</span><span class="guess-hint">a real person</span>
+        </button>
+        <button class="btn-guess btn-guess--bot" data-guess="bot">
+          <svg viewBox="0 0 24 24" class="icon guess-icon" aria-hidden="true"><path d="M12 3 V6 M9.5 3 H14.5"/><rect x="4.5" y="6" width="15" height="12" rx="2.5"/><circle cx="9.3" cy="11.5" r="1.4"/><circle cx="14.7" cy="11.5" r="1.4"/><path d="M9.5 15 H14.5 M2.5 11 H4.5 M19.5 11 H21.5"/></svg><span class="guess-label">Bot</span><span class="guess-hint">an AI pretending</span>
+        </button>
+      </div>
+      <p class="guess-status" id="guess-status" hidden>Locking in your guess<span class="dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></p>
     </div>
   </section>
 
   <!-- screen: result -->
   <section id="screen-result" class="screen">
-    <div id="result-chat-log" class="chat-log" aria-live="off"></div>
-    <div class="result-bottom">
-      <div class="ticket" id="ticket">
-        <p class="ticket-verdict" id="result-verdict">Correct guess</p>
-        <div class="ticket-perf" aria-hidden="true"></div>
-        <p class="ticket-detail" id="result-detail">Your partner was a bot.</p>
-        <p class="ticket-partner-guess" id="result-partner-guess" hidden></p>
-        <p class="ticket-quote" id="result-quote">"…"</p>
-        <div class="ticket-perf" aria-hidden="true"></div>
-        <p class="ticket-score" id="result-score">Your score on this browser: 0/0</p>
-        <p class="ticket-rank" id="result-rank">Wood I · +0 RP</p>
-        <p class="ticket-rank-event" id="result-rank-event" hidden></p>
-        <p class="ticket-brand">Falsona</p>
+    <div class="result-shell">
+      <div class="result-bottom">
+        <div class="ticket-wrap">
+          <div class="ticket" id="ticket">
+            <p class="ticket-stamp" id="result-stamp" aria-hidden="true" hidden></p>
+            <p class="ticket-verdict" id="result-verdict">Correct guess</p>
+            <div class="ticket-perf" aria-hidden="true"></div>
+            <p class="ticket-detail" id="result-detail">Your partner was a bot.</p>
+            <p class="ticket-partner-guess" id="result-partner-guess" hidden></p>
+            <p class="ticket-quote" id="result-quote">"…"</p>
+            <div class="ticket-perf" aria-hidden="true"></div>
+            <div class="ticket-rankline">
+              <div class="ticket-emblem" id="result-emblem" aria-hidden="true"></div>
+              <p class="ticket-delta" id="result-delta" aria-hidden="true"></p>
+            </div>
+            <p class="ticket-rank" id="result-rank">Wood I · +0 RP</p>
+            <p class="ticket-rank-event" id="result-rank-event" hidden></p>
+            <p class="ticket-score" id="result-score">Your score on this browser: 0/0</p>
+            <p class="ticket-brand">Falsona</p>
+          </div>
+          <div class="confetti" id="confetti" aria-hidden="true"></div>
+        </div>
+        <div class="result-actions">
+          <button id="btn-share" class="btn-cli">Share card</button>
+          <button id="btn-again" class="btn-cli btn-cli--solid">Play again</button>
+        </div>
+        <button id="btn-dashboard" class="btn-text" type="button">Back to dashboard</button>
       </div>
-      <div class="result-actions">
-        <button id="btn-share" class="btn-cli">Share card</button>
-        <button id="btn-again" class="btn-cli">Play again</button>
+      <div class="transcript-card">
+        <p class="transcript-label">// the conversation</p>
+        <div id="result-chat-log" class="chat-log" aria-live="off"></div>
       </div>
-      <button id="btn-dashboard" class="btn-text" type="button">Back to dashboard</button>
     </div>
   </section>
 
