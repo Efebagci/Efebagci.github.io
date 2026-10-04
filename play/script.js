@@ -834,6 +834,8 @@ function handleServerMessage(data) {
       matched = true;
       resumeToken = data.resume_token;
       minMessages = data.min_messages;
+      // a random label for the partner, purely cosmetic
+      document.getElementById("stranger-id").textContent = String(1000 + Math.floor(Math.random() * 9000));
       showScreen("chat");
       setMyTurn(data.your_turn);
       updateGuessNowButton();
@@ -1065,7 +1067,11 @@ function saveScore(score) {
 }
 
 function setGuessButtonsDisabled(disabled) {
-  document.querySelectorAll(".btn-guess").forEach((btn) => { btn.disabled = disabled; });
+  document.querySelectorAll(".btn-guess").forEach((btn) => {
+    btn.disabled = disabled;
+    if (!disabled) btn.classList.remove("is-chosen");
+  });
+  if (!disabled) document.getElementById("guess-status").hidden = true;
 }
 
 document.querySelectorAll(".btn-guess").forEach((btn) => {
@@ -1076,6 +1082,8 @@ document.querySelectorAll(".btn-guess").forEach((btn) => {
     awaitingGuessResult = true;
     pendingGuess = btn.dataset.guess;
     setGuessButtonsDisabled(true);
+    btn.classList.add("is-chosen");
+    document.getElementById("guess-status").hidden = false;
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({ type: "guess", value: pendingGuess }));
     } else if (reconnectDeadline === null) {
@@ -1163,6 +1171,10 @@ function showUnscoredResult() {
   const eventEl = document.getElementById("result-rank-event");
   eventEl.textContent = ""; // the share card draws this text even when it's hidden
   eventEl.hidden = true;
+  document.getElementById("result-stamp").hidden = true;
+  showResultEmblem(rank, null);
+  document.getElementById("result-delta").textContent = "";
+  celebrate(null);
 
   renderTranscriptInto(resultChatLog);
   showScreen("result");
@@ -1208,12 +1220,91 @@ function showResult(verdictLabel, truth, score, rankBefore, rankAfter, rankDelta
     eventEl.textContent = `Demoted from ${rankLabel(rankBefore.tier, rankBefore.division)}.`;
     eventEl.hidden = false;
   } else {
+    eventEl.textContent = ""; // the share card draws this text even when it's hidden
     eventEl.hidden = true;
   }
+
+  const won = verdictLabel === "Correct guess";
+  showStamp(won ? "Correct" : STAMP_TEXT[verdictLabel] || "Wrong", won);
+  showResultEmblem(rankAfter, rankEvent);
+  countUpDelta(rankDelta);
 
   renderTranscriptInto(resultChatLog);
   renderRank(); // keep the dashboard in sync for when the player goes back
   showScreen("result");
+  celebrate(rankEvent === "promoted" ? "promoted" : won ? "win" : "loss");
+}
+
+// ---------- result screen effects ----------
+const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const STAMP_TEXT = { "Wrong guess": "Wrong", "Timed out": "Timed out", "Left the game": "Left" };
+
+// Restarts a CSS animation on an element that may already have played it.
+function replayAnimation(el, className) {
+  el.classList.remove(className);
+  void el.offsetWidth;
+  el.classList.add(className);
+}
+
+function showStamp(text, good) {
+  const stamp = document.getElementById("result-stamp");
+  stamp.textContent = text;
+  stamp.classList.toggle("is-correct", good);
+  stamp.hidden = false;
+  replayAnimation(stamp, "is-landing");
+}
+
+function showResultEmblem(rank, event) {
+  const box = document.getElementById("result-emblem");
+  box.innerHTML = rankEmblem(rank.tier, rank.division);
+  box.classList.remove("is-promoted", "is-demoted");
+  if (event) replayAnimation(box, event === "promoted" ? "is-promoted" : "is-demoted");
+}
+
+// The big "+57 RP" on the ticket counts up instead of just appearing.
+function countUpDelta(delta) {
+  const el = document.getElementById("result-delta");
+  const sign = delta > 0 ? "+" : "−";
+  el.className = `ticket-delta ${delta > 0 ? "is-up" : "is-down"}`;
+  if (prefersReducedMotion) {
+    el.textContent = `${sign}${Math.abs(delta)} RP`;
+    return;
+  }
+  const started = performance.now();
+  const step = (now) => {
+    const t = Math.min(1, (now - started) / 800);
+    const eased = 1 - (1 - t) ** 3;
+    el.textContent = `${sign}${Math.round(Math.abs(delta) * eased)} RP`;
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+const CONFETTI_COLORS = ["var(--pink)", "var(--yellow)", "var(--paper)", "var(--tier-diamond)"];
+
+// A burst of confetti for a right call (a bigger one for a promotion), a
+// shake of the ticket for a wrong one.
+function celebrate(kind) {
+  const ticket = document.getElementById("ticket");
+  const box = document.getElementById("confetti");
+  box.innerHTML = "";
+  ticket.classList.remove("is-shaking");
+  if (prefersReducedMotion) return;
+  if (kind === "loss") {
+    replayAnimation(ticket, "is-shaking");
+    return;
+  }
+  const pieces = kind === "promoted" ? 70 : 32;
+  for (let i = 0; i < pieces; i++) {
+    const piece = document.createElement("i");
+    piece.style.setProperty("--x", `${Math.round((Math.random() * 2 - 1) * 260)}px`);
+    piece.style.setProperty("--y", `${-Math.round(90 + Math.random() * 230)}px`);
+    piece.style.setProperty("--r", `${Math.round(Math.random() * 900 - 450)}deg`);
+    piece.style.setProperty("--d", `${(Math.random() * 0.25).toFixed(2)}s`);
+    piece.style.background = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+    box.appendChild(piece);
+  }
+  setTimeout(() => { box.innerHTML = ""; }, 2600);
 }
 
 // ---------- share card ----------
@@ -1301,6 +1392,26 @@ async function drawTicketCanvas(canvas) {
   ctx.fillStyle = "#FF4FA3";
   ctx.font = "700 30px 'Space Mono', monospace";
   ctx.fillText(GAME_NAME, W / 2, cardY + cardH - 40);
+
+  // the rubber stamp from the result screen, top right of the card
+  const stampEl = document.getElementById("result-stamp");
+  if (!stampEl.hidden) {
+    const stampText = stampEl.textContent.toUpperCase();
+    const stampColor = stampEl.classList.contains("is-correct") ? "#15162B" : "#FF4FA3";
+    ctx.save();
+    ctx.translate(cardX + cardW - 150, cardY + 64);
+    ctx.rotate((-12 * Math.PI) / 180);
+    ctx.font = "700 34px 'Space Mono', monospace";
+    const stampWidth = ctx.measureText(stampText).width + 40;
+    ctx.strokeStyle = stampColor;
+    ctx.fillStyle = stampColor;
+    ctx.lineWidth = 5;
+    ctx.strokeRect(-stampWidth / 2, -32, stampWidth, 64);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(stampText, 0, 2);
+    ctx.restore();
+  }
   ctx.restore();
 }
 
